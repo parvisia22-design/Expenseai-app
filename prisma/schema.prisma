@@ -16,13 +16,19 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
 
+  // Profile (shown on the reimbursement form as Nama Karyawan / Divisi)
+  displayName    String?
+  division       String?
+  employeeNumber String?
+
   accounts      Account[]
   sessions      Session[]
 
-  trips         Trip[]
-  places        Place[]
-  routePresets  RoutePreset[]
-  purposeLinks  PurposeLink[]
+  reimbursements Reimbursement[]
+  expenseLines   ExpenseLine[]
+  places         Place[]
+  routePresets   RoutePreset[]
+  purposeLinks   PurposeLink[]
 }
 
 model Account {
@@ -61,19 +67,23 @@ model VerificationToken {
 }
 
 // ─── Domain models ───────────────────────────────────────────────
-enum AttachmentType {
-  RECEIPT
+enum ExpenseType {
+  MEAL
   TOLL
   PARKING
+  FUEL
   MILEAGE
+  LODGING
   OTHER
 }
 
-enum TripStatus {
+enum ReimbursementStatus {
   DRAFT
-  SUBMITTED
-  APPROVED
-  REIMBURSED
+  SUBMITTED           // Menunggu Supervisor
+  SUPERVISOR_APPROVED // Menunggu Finance
+  FINANCE_APPROVED    // Fully approved, ready for payout
+  REIMBURSED          // Paid
+  REJECTED
 }
 
 model Place {
@@ -85,11 +95,11 @@ model Place {
   lng       Float?
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tripsAsOrigin Trip[] @relation("TripOrigin")
-  tripsAsDest   Trip[] @relation("TripDest")
-  purposeLinks  PurposeLink[]
+  linesAsOrigin   ExpenseLine[] @relation("LineOrigin")
+  linesAsDest     ExpenseLine[] @relation("LineDest")
+  purposeLinks    PurposeLink[]
   presetsAsOrigin RoutePreset[] @relation("PresetOrigin")
   presetsAsDest   RoutePreset[] @relation("PresetDest")
 
@@ -97,57 +107,86 @@ model Place {
   @@index([userId])
 }
 
-model Trip {
-  id            String     @id @default(cuid())
-  userId        String
-  date          DateTime
-  purpose       String
-  originId      String?
-  destId        String?
-  mileageKm     Float?
-  tollAmount    Int        @default(0)
-  parkingAmount Int        @default(0)
-  mealAmount    Int        @default(0)
-  otherAmount   Int        @default(0)
-  totalAmount   Int        @default(0)
-  status        TripStatus @default(DRAFT)
-  notes         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+// The parent form — one row = one printable "Formulir Reimbursement Perjalanan Dinas".
+model Reimbursement {
+  id             String              @id @default(cuid())
+  userId         String
+  title          String              // "Perjalanan Dinas Jakarta - Bandung"
+  purpose        String              // Tujuan
+  visitedPlace   String?             // Tempat yang dikunjungi (freeform)
+  periodStart    DateTime            // Jangka Waktu (start)
+  periodEnd      DateTime            // Jangka Waktu (end)
+  status         ReimbursementStatus @default(DRAFT)
+  totalAmount    Int                 @default(0)  // sum of lines
+  currency       String              @default("IDR")
+  notes          String?
+  submittedAt    DateTime?
+  supervisorAt   DateTime?
+  financeAt      DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  origin      Place?       @relation("TripOrigin", fields: [originId], references: [id])
-  destination Place?       @relation("TripDest",   fields: [destId],   references: [id])
-  attachments Attachment[]
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lines ExpenseLine[]
+
+  @@index([userId, periodStart])
+  @@index([userId, status])
+}
+
+// Rincian Biaya — a single row in the reimbursement's expense table.
+model ExpenseLine {
+  id              String      @id @default(cuid())
+  userId          String
+  reimbursementId String?
+  date            DateTime
+  type            ExpenseType
+  purpose         String?     // Tujuan (optional, defaults to parent)
+  originId        String?
+  destId          String?
+  placeText       String?     // freeform Tempat when no Place row
+  description     String?
+  unit            String?     // "L", "km", "trip", "pax"
+  quantity        Float?
+  unitPrice       Int?
+  amount          Int         @default(0)
+  mileageKm       Float?
+  ocrJson         Json?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reimbursement Reimbursement? @relation(fields: [reimbursementId], references: [id], onDelete: SetNull)
+  origin        Place?         @relation("LineOrigin", fields: [originId], references: [id])
+  destination   Place?         @relation("LineDest",   fields: [destId],   references: [id])
+  attachments   Attachment[]
 
   @@index([userId, date])
-  @@index([userId, purpose])
+  @@index([reimbursementId])
 }
 
 model Attachment {
-  id        String         @id @default(cuid())
-  tripId    String
-  type      AttachmentType
-  imageUrl  String
-  amount    Int?
-  ocrJson   Json?
-  createdAt DateTime       @default(now())
+  id            String   @id @default(cuid())
+  expenseLineId String
+  imageUrl      String
+  amount        Int?
+  ocrJson       Json?
+  createdAt     DateTime @default(now())
 
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  line ExpenseLine @relation(fields: [expenseLineId], references: [id], onDelete: Cascade)
 
-  @@index([tripId])
+  @@index([expenseLineId])
 }
 
 model RoutePreset {
-  id          String   @id @default(cuid())
-  userId      String
-  originId    String
-  destId      String
-  distanceKm  Float
-  avgToll     Int      @default(0)
-  avgParking  Int      @default(0)
-  samples     Int      @default(1)
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  originId   String
+  destId     String
+  distanceKm Float
+  avgToll    Int      @default(0)
+  avgParking Int      @default(0)
+  samples    Int      @default(1)
+  updatedAt  DateTime @updatedAt
 
   user   User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   origin Place @relation("PresetOrigin", fields: [originId], references: [id], onDelete: Cascade)

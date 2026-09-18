@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { extractReceipt } from "@/lib/ocr/claude-vision";
 import { saveImage } from "@/lib/storage/local";
-import { attachToTrip, upsertDayTrip } from "@/lib/trip/group";
+import { addLineWithAttachment, upsertOpenReimbursement } from "@/lib/expense/group";
+import type { ExpenseType } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// One shot: upload → OCR → persist as an Attachment on today's (or the given) Trip.
+// One shot: upload → OCR → persist as an ExpenseLine on the current DRAFT Reimbursement.
 export async function POST(req: NextRequest) {
   const session = await auth();
   const userId = session?.user?.id;
@@ -34,28 +35,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: extract._error, imageUrl: stored.url }, { status: 500 });
   }
 
-  const CATEGORY_TO_TYPE = {
-    MEAL: "RECEIPT",
+  const CATEGORY_TO_TYPE: Record<string, ExpenseType> = {
+    MEAL: "MEAL",
     TOLL: "TOLL",
     PARKING: "PARKING",
-    FUEL: "RECEIPT",
+    FUEL: "FUEL",
     OTHER: "OTHER",
-  } as const;
+  };
 
-  const trip = await upsertDayTrip({
+  const reimbursement = await upsertOpenReimbursement({
     userId,
-    date: extract.date ? new Date(extract.date) : new Date(dateStr),
     purpose,
+    date: extract.date ? new Date(extract.date) : new Date(dateStr),
   });
 
-  const attachment = await attachToTrip({
+  const line = await addLineWithAttachment({
     userId,
-    tripId: trip.id,
-    type: CATEGORY_TO_TYPE[extract.category],
-    imageUrl: stored.url,
+    reimbursementId: reimbursement.id,
+    date: extract.date ? new Date(extract.date) : new Date(dateStr),
+    type: CATEGORY_TO_TYPE[extract.category] ?? "OTHER",
     amount: extract.total ?? null,
+    purpose,
+    imageUrl: stored.url,
     ocrJson: extract,
   });
 
-  return NextResponse.json({ tripId: trip.id, attachmentId: attachment.id, extract, imageUrl: stored.url });
+  return NextResponse.json({
+    reimbursementId: reimbursement.id,
+    lineId: line.id,
+    extract,
+    imageUrl: stored.url,
+  });
 }

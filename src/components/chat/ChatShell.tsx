@@ -84,7 +84,7 @@ export function ChatShell({ userName }: { userName: string }) {
       {
         id: crypto.randomUUID(),
         role: "assistant",
-        text: `✅ Saved to trip: ${r.extract.category} · ${r.extract.merchant ?? "unknown"} · Rp ${total}${r.extract.date ? ` · ${r.extract.date}` : ""}. View: /report/${r.tripId}`,
+        text: `✅ Added line: ${r.extract.category} · ${r.extract.merchant ?? "unknown"} · Rp ${total}${r.extract.date ? ` · ${r.extract.date}` : ""}. Open report: /report/${r.reimbursementId}`,
       },
     ]);
   }
