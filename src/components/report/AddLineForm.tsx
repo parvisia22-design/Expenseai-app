@@ -1,49 +1,70 @@
 "use client";
 import { useState } from "react";
 import { addLine } from "@/lib/expense/actions";
-
-const TYPES = [
-  ["MEAL", "Meal"],
-  ["TOLL", "Toll"],
-  ["PARKING", "Parking"],
-  ["FUEL", "BBM"],
-  ["MILEAGE", "Mileage"],
-  ["LODGING", "Penginapan"],
-  ["OTHER", "Lain-lain"],
-] as const;
+import { CATEGORY_OPTIONS } from "@/lib/expense/categories";
 
 export function AddLineForm({ reimbursementId, defaultDate }: { reimbursementId: string; defaultDate: string }) {
   const [open, setOpen] = useState(false);
+  const [type, setType] = useState<string>("TICKETS");
+  const suggestedUnit = CATEGORY_OPTIONS.find((c) => c.value === type)?.unit ?? "";
+
   if (!open) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mt-3 w-full rounded-lg border border-dashed border-[var(--color-outline)] py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]"
+        className="mt-3 w-full rounded-lg border border-dashed border-[var(--color-primary)]/40 bg-[var(--color-primary-soft)]/40 py-2.5 text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]"
       >
-        + Tambah Rincian
+        + Tambah kategori / Add category…
       </button>
     );
   }
+
   return (
     <form
       action={async (fd) => {
         await addLine(fd);
         setOpen(false);
       }}
-      className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-[var(--color-primary)]/40 bg-[var(--color-primary-soft)] p-3 sm:grid-cols-6"
+      className="mt-3 rounded-xl border border-[var(--color-primary)]/40 bg-[var(--color-primary-soft)] p-3"
     >
       <input type="hidden" name="reimbursementId" value={reimbursementId} />
-      <input name="date" type="date" defaultValue={defaultDate} required className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1.5 text-sm sm:col-span-2" />
-      <select name="type" defaultValue="MEAL" className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1.5 text-sm">
-        {TYPES.map(([v, l]) => (
-          <option key={v} value={v}>{l}</option>
-        ))}
-      </select>
-      <input name="placeText" placeholder="Tempat" className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1.5 text-sm" />
-      <input name="amount" type="number" min="0" placeholder="Rp" required className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-right font-mono" />
-      <div className="flex gap-2 sm:col-span-6">
-        <button className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">Tambah</button>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-[var(--color-outline)] px-3 py-1.5 text-xs">Batal</button>
+      <div className="grid grid-cols-12 gap-2">
+        <label className="col-span-12 sm:col-span-4">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Expense Type</span>
+          <select name="type" value={type} onChange={(e) => setType(e.target.value)} className="w-full rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-2 text-sm">
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="col-span-6 sm:col-span-2">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Unit</span>
+          <input name="unit" defaultValue={suggestedUnit} key={type} className="w-full rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-2 text-sm" />
+        </label>
+        <label className="col-span-6 sm:col-span-2">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Sat.</span>
+          <input name="quantity" type="number" step="0.1" min="0" placeholder="1" className="w-full rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-2 text-right font-mono text-sm" />
+        </label>
+        <label className="col-span-6 sm:col-span-2">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Unit Price (IDR)</span>
+          <input name="unitPrice" type="number" min="0" className="w-full rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-2 text-right font-mono text-sm" />
+        </label>
+        <label className="col-span-6 sm:col-span-2">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Total</span>
+          <input name="amount" type="number" min="0" required placeholder="Rp" className="w-full rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-2 text-right font-mono text-sm font-semibold" />
+        </label>
+        <label className="col-span-12 sm:col-span-4">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Tanggal</span>
+          <input name="date" type="date" defaultValue={defaultDate} required className="w-full rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-2 text-sm" />
+        </label>
+        <label className="col-span-12 sm:col-span-8">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Tempat / Description</span>
+          <input name="placeText" placeholder="Kantor → Pabrik Jatake" className="w-full rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-2 text-sm" />
+        </label>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <button className="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-xs font-semibold text-white">Tambah</button>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-[var(--color-outline)] px-4 py-1.5 text-xs">Batal</button>
       </div>
     </form>
   );

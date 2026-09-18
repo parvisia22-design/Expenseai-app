@@ -6,7 +6,10 @@ import { prisma } from "@/lib/db/prisma";
 import { recomputeReimbursementTotal } from "@/lib/expense/group";
 import type { ExpenseType } from "@prisma/client";
 
-const TYPES: ExpenseType[] = ["MEAL", "TOLL", "PARKING", "FUEL", "MILEAGE", "LODGING", "OTHER"];
+const TYPES: ExpenseType[] = [
+  "TICKETS", "HOTEL", "RENTAL_CAR", "TRANSPORT", "TOLL_PARKING",
+  "PETROL", "MILEAGE", "MEAL", "ENTERTAINMENT", "EXTRA", "OTHER",
+];
 
 async function requireOwner(reimbursementId: string) {
   const s = await auth();
@@ -60,6 +63,9 @@ const LineInput = z.object({
   amount: z.coerce.number().int().nonnegative(),
   description: z.string().optional(),
   placeText: z.string().optional(),
+  unit: z.string().optional(),
+  quantity: z.coerce.number().nonnegative().optional(),
+  unitPrice: z.coerce.number().int().nonnegative().optional(),
 });
 
 export async function addLine(fd: FormData) {
@@ -70,6 +76,9 @@ export async function addLine(fd: FormData) {
     amount: fd.get("amount"),
     description: fd.get("description") ?? undefined,
     placeText: fd.get("placeText") ?? undefined,
+    unit: fd.get("unit") ?? undefined,
+    quantity: fd.get("quantity") || undefined,
+    unitPrice: fd.get("unitPrice") || undefined,
   });
   const userId = await requireOwner(parsed.reimbursementId);
   await prisma.expenseLine.create({
@@ -81,6 +90,9 @@ export async function addLine(fd: FormData) {
       amount: parsed.amount,
       description: parsed.description || null,
       placeText: parsed.placeText || null,
+      unit: parsed.unit || null,
+      quantity: parsed.quantity ?? null,
+      unitPrice: parsed.unitPrice ?? null,
     },
   });
   await recomputeReimbursementTotal(parsed.reimbursementId);

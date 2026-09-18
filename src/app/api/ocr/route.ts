@@ -36,10 +36,16 @@ export async function POST(req: NextRequest) {
   }
 
   const CATEGORY_TO_TYPE: Record<string, ExpenseType> = {
+    TICKETS: "TICKETS",
+    HOTEL: "HOTEL",
+    RENTAL_CAR: "RENTAL_CAR",
+    TRANSPORT: "TRANSPORT",
+    TOLL_PARKING: "TOLL_PARKING",
+    PETROL: "PETROL",
+    MILEAGE: "MILEAGE",
     MEAL: "MEAL",
-    TOLL: "TOLL",
-    PARKING: "PARKING",
-    FUEL: "FUEL",
+    ENTERTAINMENT: "ENTERTAINMENT",
+    EXTRA: "EXTRA",
     OTHER: "OTHER",
   };
 

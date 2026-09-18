@@ -68,13 +68,24 @@ model VerificationToken {
 
 // ─── Domain models ───────────────────────────────────────────────
 enum ExpenseType {
+  // Current canonical categories (match Stitch reimbursement form)
+  TICKETS
+  HOTEL
+  RENTAL_CAR
+  TRANSPORT
+  TOLL_PARKING
+  PETROL
+  MILEAGE
   MEAL
+  ENTERTAINMENT
+  EXTRA
+  OTHER
+
+  // Deprecated (kept so historic rows still validate)
   TOLL
   PARKING
   FUEL
-  MILEAGE
   LODGING
-  OTHER
 }
 
 enum ReimbursementStatus {

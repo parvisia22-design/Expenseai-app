@@ -2,12 +2,16 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+export type ExtractCategory =
+  | "TICKETS" | "HOTEL" | "RENTAL_CAR" | "TRANSPORT" | "TOLL_PARKING"
+  | "PETROL" | "MILEAGE" | "MEAL" | "ENTERTAINMENT" | "EXTRA" | "OTHER";
+
 export type ReceiptExtract = {
   merchant: string | null;
-  date: string | null;        // ISO yyyy-mm-dd
-  total: number | null;       // integer IDR
+  date: string | null;
+  total: number | null;
   currency: string | null;
-  category: "MEAL" | "TOLL" | "PARKING" | "FUEL" | "OTHER";
+  category: ExtractCategory;
   items: { name: string; price: number }[];
   raw_text: string;
 };
@@ -15,13 +19,18 @@ export type ReceiptExtract = {
 const SYSTEM = `You extract structured data from Indonesian receipts (struk/bon).
 Return JSON matching the schema. Amounts are integers in IDR (strip "Rp", dots, commas).
 Category rules:
-- MEAL: restaurants, cafes, food delivery, groceries
-- TOLL: e-toll top-up, tol gerbang, JORR, Jasa Marga
-- PARKING: parking lots, valet, Secure Parking
-- FUEL: Pertamina, Shell, BP, SPBU
+- TICKETS: airline, train, bus, KAI, Garuda, Lion
+- HOTEL: hotels, guest houses, Airbnb receipts
+- RENTAL_CAR: car rental (TRAC, Blue Bird rental)
+- TRANSPORT: Grab, Gojek, Blue Bird taxi, ojek, angkot
+- TOLL_PARKING: e-toll top-up, tol gerbang, JORR, Jasa Marga, parking lots, valet, Secure Parking
+- PETROL: Pertamina, Shell, BP, SPBU
+- MEAL: restaurants, cafes, food delivery (GrabFood, GoFood), groceries
+- ENTERTAINMENT: cinema, events, client entertainment
+- EXTRA: stationery, small office supplies
 - OTHER: anything else`;
 
-const SCHEMA_HINT = `{"merchant":string|null,"date":"YYYY-MM-DD"|null,"total":int|null,"currency":"IDR","category":"MEAL"|"TOLL"|"PARKING"|"FUEL"|"OTHER","items":[{"name":string,"price":int}],"raw_text":string}`;
+const SCHEMA_HINT = `{"merchant":string|null,"date":"YYYY-MM-DD"|null,"total":int|null,"currency":"IDR","category":"TICKETS"|"HOTEL"|"RENTAL_CAR"|"TRANSPORT"|"TOLL_PARKING"|"PETROL"|"MEAL"|"ENTERTAINMENT"|"EXTRA"|"OTHER","items":[{"name":string,"price":int}],"raw_text":string}`;
 
 type SupportedMedia = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 const normalizeMedia = (t: string): SupportedMedia =>

@@ -2,12 +2,10 @@
 import { useState } from "react";
 import { deleteLine, updateLine } from "@/lib/expense/actions";
 
-const TYPE_LABEL: Record<string, string> = {
-  MEAL: "Meal", TOLL: "Toll", PARKING: "Parking", FUEL: "BBM",
-  MILEAGE: "Mileage", LODGING: "Penginapan", OTHER: "Lain-lain",
-};
-
-const rp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+const rp = (n: number | null | undefined) =>
+  n == null ? "—" : `Rp ${n.toLocaleString("id-ID")}`;
+const num = (n: number | null | undefined) =>
+  n == null ? "—" : n.toLocaleString("id-ID");
 
 export function LineRow({
   line,
@@ -18,9 +16,13 @@ export function LineRow({
     reimbursementId: string;
     date: string;
     type: string;
+    typeLabel: string;
     amount: number;
     description: string | null;
     place: string;
+    unit: string;
+    quantity: number | null;
+    unitPrice: number | null;
   };
   editable: boolean;
 }) {
@@ -29,26 +31,26 @@ export function LineRow({
   if (editing && editable) {
     return (
       <tr>
-        <td colSpan={5} className="p-2">
+        <td colSpan={8} className="p-2">
           <form
             action={async (fd) => {
               await updateLine(fd);
               setEditing(false);
             }}
-            className="grid grid-cols-2 items-end gap-2 rounded-lg border border-[var(--color-primary)]/40 bg-[var(--color-primary-soft)] p-2 text-sm sm:grid-cols-6"
+            className="grid grid-cols-12 items-end gap-2 rounded-lg border border-[var(--color-primary)]/40 bg-[var(--color-primary-soft)] p-2 text-sm"
           >
             <input type="hidden" name="lineId" value={line.id} />
             <input type="hidden" name="reimbursementId" value={line.reimbursementId} />
-            <div className="sm:col-span-3">
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Catatan</label>
+            <label className="col-span-12 sm:col-span-8">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Catatan / Description</span>
               <input name="description" defaultValue={line.description ?? ""} className="w-full rounded border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Rp</label>
+            </label>
+            <label className="col-span-8 sm:col-span-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Total (Rp)</span>
               <input name="amount" type="number" min="0" defaultValue={line.amount} className="w-full rounded border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1 text-right font-mono" />
-            </div>
-            <div className="flex gap-1">
-              <button className="rounded bg-[var(--color-primary)] px-2 py-1 text-xs font-semibold text-white">Save</button>
+            </label>
+            <div className="col-span-4 sm:col-span-1 flex gap-1">
+              <button className="flex-1 rounded bg-[var(--color-primary)] px-2 py-1 text-xs font-semibold text-white">✓</button>
               <button type="button" onClick={() => setEditing(false)} className="rounded border border-[var(--color-outline)] px-2 py-1 text-xs">×</button>
             </div>
           </form>
@@ -58,11 +60,14 @@ export function LineRow({
   }
 
   return (
-    <tr className="border-b border-[var(--color-outline)] last:border-0">
-      <td className="py-2 pr-3">{line.date}</td>
-      <td className="py-2 pr-3">{line.place || "—"}</td>
-      <td className="py-2 pr-3">{TYPE_LABEL[line.type] ?? line.type}</td>
-      <td className="py-2 pr-3 text-right font-mono">{rp(line.amount)}</td>
+    <tr className="border-b border-[var(--color-outline)] last:border-0 hover:bg-[var(--color-surface-container)]/40">
+      <td className="py-2 pr-3 font-medium">{line.typeLabel}</td>
+      <td className="py-2 pr-3 text-[var(--color-ink-soft)]">{line.date}</td>
+      <td className="py-2 pr-3 max-w-[240px] truncate">{line.place || line.description || "—"}</td>
+      <td className="py-2 pr-3 text-right text-[var(--color-ink-soft)]">{line.unit || "—"}</td>
+      <td className="py-2 pr-3 text-right font-mono">{num(line.quantity)}</td>
+      <td className="py-2 pr-3 text-right font-mono text-[var(--color-ink-soft)]">{rp(line.unitPrice)}</td>
+      <td className="py-2 pr-3 text-right font-mono font-semibold">{rp(line.amount)}</td>
       <td className="py-2 pr-3 text-right print:hidden">
         {editable && (
           <div className="flex justify-end gap-1">
