@@ -13,6 +13,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // Confidential (server-side) client: state alone is enough CSRF protection.
+      // Railway's edge sometimes drops the pkce cookie between the Google redirect
+      // and the callback, which errors as InvalidCheck.
+      checks: ["state"],
     }),
   );
 }
