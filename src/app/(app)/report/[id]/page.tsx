@@ -4,16 +4,15 @@ import { prisma } from "@/lib/db/prisma";
 import { rp, fmtDate } from "@/lib/format";
 import { PrintButton } from "@/components/trip/PrintButton";
 import { SubmitButton } from "@/components/trip/SubmitButton";
+import { HeaderEditor } from "@/components/report/HeaderEditor";
+import { AddLineForm } from "@/components/report/AddLineForm";
+import { LineRow } from "@/components/report/LineRow";
+import { deleteReimbursement } from "@/lib/expense/actions";
 import { submitReimbursement } from "@/lib/expense/group";
 
 const TYPE_LABEL: Record<string, string> = {
-  MEAL: "Meal",
-  TOLL: "Toll",
-  PARKING: "Parking",
-  FUEL: "BBM",
-  MILEAGE: "Mileage",
-  LODGING: "Penginapan",
-  OTHER: "Lain-lain",
+  MEAL: "Meal", TOLL: "Toll", PARKING: "Parking", FUEL: "BBM",
+  MILEAGE: "Mileage", LODGING: "Penginapan", OTHER: "Lain-lain",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -25,6 +24,8 @@ const STATUS_LABEL: Record<string, string> = {
   REJECTED: "Ditolak",
 };
 
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
@@ -33,10 +34,12 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     where: { id, userId: session!.user!.id },
     include: {
       user: true,
-      lines: { include: { attachments: true, origin: true, destination: true }, orderBy: { date: "asc" } },
+      lines: { include: { attachments: true, destination: true }, orderBy: { date: "asc" } },
     },
   });
   if (!r) notFound();
+
+  const editable = r.status === "DRAFT";
 
   async function submit() {
     "use server";
@@ -45,21 +48,22 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     await submitReimbursement(s.user.id, id);
   }
 
-  const canSubmit = r.status === "DRAFT" && r.lines.length > 0;
-
   const byType = r.lines.reduce<Record<string, number>>((m, l) => {
     m[l.type] = (m[l.type] ?? 0) + l.amount;
     return m;
   }, {});
 
+  const canSubmit = editable && r.lines.length > 0;
+  const defaultDate = iso(r.periodStart);
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 print:py-0">
       <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
             Formulir Reimbursement Perjalanan Dinas
           </p>
-          <h1 className="text-2xl font-bold tracking-tight">{r.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight truncate">{r.title}</h1>
           <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
             {fmtDate(r.periodStart)}
             {r.periodStart.getTime() !== r.periodEnd.getTime() ? ` — ${fmtDate(r.periodEnd)}` : ""}
@@ -70,8 +74,17 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         </span>
       </header>
 
-      {/* Header details */}
+      {/* Header details (editable) */}
       <section className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6">
+        <HeaderEditor
+          reimbursementId={r.id}
+          title={r.title}
+          purpose={r.purpose}
+          visitedPlace={r.visitedPlace}
+          periodStart={iso(r.periodStart)}
+          periodEnd={iso(r.periodEnd)}
+          editable={editable}
+        />
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <Row k="Nama Karyawan / Staff's Name" v={r.user.displayName ?? r.user.name ?? r.user.email} />
           <Row k="Divisi / Division" v={r.user.division ?? "—"} />
@@ -82,37 +95,48 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         </dl>
       </section>
 
-      {/* Rincian Biaya */}
+      {/* Rincian Biaya (editable) */}
       <section className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6">
         <h2 className="mb-3 font-semibold">Rincian Biaya / Expense Detail</h2>
-        {r.lines.length === 0 ? (
-          <p className="text-sm text-[var(--color-ink-soft)]">Belum ada rincian.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-outline)] text-left text-xs uppercase tracking-wide text-[var(--color-ink-soft)]">
-                  <th className="py-2 pr-3">Tanggal</th>
-                  <th className="py-2 pr-3">Tempat</th>
-                  <th className="py-2 pr-3">Type</th>
-                  <th className="py-2 pr-3 text-right">Total</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--color-outline)] text-left text-xs uppercase tracking-wide text-[var(--color-ink-soft)]">
+                <th className="py-2 pr-3">Tanggal</th>
+                <th className="py-2 pr-3">Tempat</th>
+                <th className="py-2 pr-3">Type</th>
+                <th className="py-2 pr-3 text-right">Total</th>
+                <th className="py-2 pr-3 print:hidden" />
+              </tr>
+            </thead>
+            <tbody>
+              {r.lines.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-sm text-[var(--color-ink-soft)]">
+                    Belum ada rincian.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {r.lines.map((l) => (
-                  <tr key={l.id} className="border-b border-[var(--color-outline)] last:border-0">
-                    <td className="py-2 pr-3">{fmtDate(l.date)}</td>
-                    <td className="py-2 pr-3">
-                      {l.destination?.name ?? l.placeText ?? "—"}
-                    </td>
-                    <td className="py-2 pr-3">{TYPE_LABEL[l.type] ?? l.type}</td>
-                    <td className="py-2 pr-3 text-right font-mono">{rp(l.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ) : (
+                r.lines.map((l) => (
+                  <LineRow
+                    key={l.id}
+                    editable={editable}
+                    line={{
+                      id: l.id,
+                      reimbursementId: r.id,
+                      date: iso(l.date),
+                      type: l.type,
+                      amount: l.amount,
+                      description: l.description,
+                      place: l.destination?.name ?? l.placeText ?? "",
+                    }}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {editable && <AddLineForm reimbursementId={r.id} defaultDate={defaultDate} />}
       </section>
 
       {/* Lampiran */}
@@ -131,7 +155,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         </div>
       </section>
 
-      {/* Total Biaya + Rekap per Kategori */}
+      {/* Total */}
       <section className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6">
         <h2 className="mb-3 font-semibold">Total Biaya Perjalanan Dinas</h2>
         <table className="w-full text-sm">
@@ -161,13 +185,27 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       </section>
 
       {/* Actions */}
-      <div className="flex gap-3 print:hidden">
+      <div className="flex flex-wrap items-center gap-3 print:hidden">
         {canSubmit && (
           <form action={submit}>
             <SubmitButton />
           </form>
         )}
         <PrintButton />
+        {editable && (
+          <form
+            action={async (fd) => {
+              "use server";
+              await deleteReimbursement(fd);
+            }}
+            className="ml-auto"
+          >
+            <input type="hidden" name="reimbursementId" value={r.id} />
+            <button className="rounded-[var(--radius-control)] border border-rose-500/50 px-3 py-2 text-xs text-rose-500 hover:bg-rose-500/10">
+              Hapus Formulir
+            </button>
+          </form>
+        )}
       </div>
     </main>
   );
