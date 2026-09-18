@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MessageList, type ChatMessage } from "./MessageList";
 import { Composer } from "./Composer";
 import { SuggestionChips } from "./SuggestionChips";
+import { resizeForOCR } from "@/lib/image/resize";
 
 export function ChatShell({ userName }: { userName: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -66,8 +67,9 @@ export function ChatShell({ userName }: { userName: string }) {
       { id: crypto.randomUUID(), role: "user", text: `📎 ${file.name}` },
     ]);
     setBusy(true);
+    const shrunk = await resizeForOCR(file).catch(() => file);
     const fd = new FormData();
-    fd.set("image", file);
+    fd.set("image", shrunk);
     if (currentPurpose) fd.set("purpose", currentPurpose);
     const r = await fetch("/api/ocr", { method: "POST", body: fd }).then((res) => res.json());
     setBusy(false);
