@@ -1,13 +1,13 @@
-import Link from "next/link";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/db/prisma";
+import { ScanClient } from "@/components/scan/ScanClient";
 
-export default function ScanPage() {
-  return (
-    <main className="mx-auto max-w-2xl px-4 py-10 text-center">
-      <h1 className="text-2xl font-bold tracking-tight">Scan Struk</h1>
-      <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
-        Dedicated scanner is coming next. For now, drop a struk directly in the{" "}
-        <Link href="/chat" className="text-[var(--color-primary)] font-semibold">chat</Link>.
-      </p>
-    </main>
-  );
+export default async function ScanPage() {
+  const session = await auth();
+  const openDraft = await prisma.reimbursement.findFirst({
+    where: { userId: session!.user!.id, status: "DRAFT" },
+    orderBy: { updatedAt: "desc" },
+    select: { purpose: true },
+  });
+  return <ScanClient suggestedPurpose={openDraft?.purpose ?? ""} />;
 }

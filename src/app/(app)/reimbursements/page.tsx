@@ -23,21 +23,45 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default async function ReimbursementsPage() {
   const session = await auth();
-  const rows = await prisma.reimbursement.findMany({
-    where: { userId: session!.user!.id },
-    include: { _count: { select: { lines: true } } },
-    orderBy: { updatedAt: "desc" },
-    take: 50,
-  });
+  const userId = session!.user!.id;
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const [rows, monthAgg, pendingCount, draftCount] = await Promise.all([
+    prisma.reimbursement.findMany({
+      where: { userId },
+      include: { _count: { select: { lines: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    }),
+    prisma.reimbursement.aggregate({
+      where: { userId, periodStart: { gte: monthStart } },
+      _sum: { totalAmount: true },
+      _count: true,
+    }),
+    prisma.reimbursement.count({
+      where: { userId, status: { in: ["SUBMITTED", "SUPERVISOR_APPROVED"] } },
+    }),
+    prisma.reimbursement.count({ where: { userId, status: "DRAFT" } }),
+  ]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Formulir Reimbursement</h1>
         <Link href="/chat" className="rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3 py-1.5 text-sm font-semibold text-white">
           + New
         </Link>
       </header>
+
+      {/* Monthly summary */}
+      <section className="mb-6 grid grid-cols-3 gap-2">
+        <Stat label="Bulan ini" value={rp(monthAgg._sum.totalAmount ?? 0)} accent />
+        <Stat label="Draft" value={String(draftCount)} />
+        <Stat label="Pending" value={String(pendingCount)} />
+      </section>
       <ul className="space-y-2">
         {rows.map((r) => (
           <li key={r.id}>
@@ -69,5 +93,14 @@ export default async function ReimbursementsPage() {
         )}
       </ul>
     </main>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className={`rounded-[var(--radius-card)] border border-[var(--color-outline)] p-3 ${accent ? "bg-[var(--color-primary-soft)]" : "bg-[var(--color-surface-container-low)]"}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">{label}</p>
+      <p className={`mt-1 truncate font-mono text-sm font-bold ${accent ? "text-[var(--color-primary)]" : ""}`}>{value}</p>
+    </div>
   );
 }
