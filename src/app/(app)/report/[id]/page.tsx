@@ -9,6 +9,8 @@ import { AddLineForm } from "@/components/report/AddLineForm";
 import { LineRow } from "@/components/report/LineRow";
 import { deleteReimbursement } from "@/lib/expense/actions";
 import { submitReimbursement } from "@/lib/expense/group";
+import { ApprovalActions } from "@/components/report/ApprovalActions";
+import { terbilangRupiah } from "@/lib/format/terbilang";
 
 const TYPE_LABEL: Record<string, string> = {
   MEAL: "Meal", TOLL: "Toll", PARKING: "Parking", FUEL: "BBM",
@@ -172,6 +174,10 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             </tr>
           </tbody>
         </table>
+        <p className="mt-4 border-t border-[var(--color-outline)] pt-3 text-xs italic text-[var(--color-ink-soft)]">
+          <span className="font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Terbilang / Amount in Words:</span>{" "}
+          {terbilangRupiah(r.totalAmount)}
+        </p>
       </section>
 
       {/* Alur Persetujuan */}
@@ -190,6 +196,9 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           <form action={submit}>
             <SubmitButton />
           </form>
+        )}
+        {!editable && r.status !== "REIMBURSED" && r.status !== "REJECTED" && (
+          <ApprovalActions reimbursementId={r.id} status={r.status} />
         )}
         <PrintButton />
         {editable && (

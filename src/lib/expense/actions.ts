@@ -129,3 +129,56 @@ export async function deleteReimbursement(fd: FormData) {
   await prisma.reimbursement.delete({ where: { id } });
   revalidatePath("/reimbursements");
 }
+
+// ─── Approval workflow ─────────────────────────────────────────
+// Single-user for now: user self-approves each step to track state.
+// When multi-user is added, gate these on role (Supervisor / Finance).
+
+async function requireOwnedReimbursement(id: string) {
+  const s = await auth();
+  const userId = s?.user?.id;
+  if (!userId) throw new Error("unauthorized");
+  const r = await prisma.reimbursement.findFirst({ where: { id, userId }, select: { id: true, status: true } });
+  if (!r) throw new Error("not found");
+  return { userId, status: r.status };
+}
+
+export async function approveSupervisor(fd: FormData) {
+  const id = String(fd.get("reimbursementId") ?? "");
+  const { status } = await requireOwnedReimbursement(id);
+  if (status !== "SUBMITTED") throw new Error(`cannot approve from ${status}`);
+  await prisma.reimbursement.update({
+    where: { id },
+    data: { status: "SUPERVISOR_APPROVED", supervisorAt: new Date() },
+  });
+  revalidatePath(`/report/${id}`);
+}
+
+export async function approveFinance(fd: FormData) {
+  const id = String(fd.get("reimbursementId") ?? "");
+  const { status } = await requireOwnedReimbursement(id);
+  if (status !== "SUPERVISOR_APPROVED") throw new Error(`cannot approve from ${status}`);
+  await prisma.reimbursement.update({
+    where: { id },
+    data: { status: "FINANCE_APPROVED", financeAt: new Date() },
+  });
+  revalidatePath(`/report/${id}`);
+}
+
+export async function markReimbursed(fd: FormData) {
+  const id = String(fd.get("reimbursementId") ?? "");
+  const { status } = await requireOwnedReimbursement(id);
+  if (status !== "FINANCE_APPROVED") throw new Error(`cannot mark from ${status}`);
+  await prisma.reimbursement.update({ where: { id }, data: { status: "REIMBURSED" } });
+  revalidatePath(`/report/${id}`);
+}
+
+export async function reopenDraft(fd: FormData) {
+  const id = String(fd.get("reimbursementId") ?? "");
+  await requireOwnedReimbursement(id);
+  await prisma.reimbursement.update({
+    where: { id },
+    data: { status: "DRAFT", submittedAt: null, supervisorAt: null, financeAt: null },
+  });
+  revalidatePath(`/report/${id}`);
+}
