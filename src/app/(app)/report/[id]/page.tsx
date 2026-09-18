@@ -23,6 +23,15 @@ const STATUS_LABEL: Record<string, string> = {
   REJECTED: "Ditolak",
 };
 
+const STATUS_TONE: Record<string, string> = {
+  DRAFT: "bg-slate-500/10 text-slate-600 ring-slate-500/20",
+  SUBMITTED: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+  SUPERVISOR_APPROVED: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+  FINANCE_APPROVED: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+  REIMBURSED: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+  REJECTED: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
+};
+
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
@@ -52,23 +61,37 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const employeeName = r.user.displayName ?? r.user.name ?? r.user.email;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 print:py-0">
-      {/* Title header (screen) */}
-      <header className="mb-6 flex items-start justify-between gap-4 print:hidden">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
-            Formulir Reimbursement Perjalanan Dinas
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight truncate">{r.title}</h1>
-          <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
-            {fmtDate(r.periodStart)}
-            {r.periodStart.getTime() !== r.periodEnd.getTime() ? ` — ${fmtDate(r.periodEnd)}` : ""}
-          </p>
+    <main className="mx-auto max-w-3xl px-4 py-6 print:py-0">
+      {/* Hero header (screen) */}
+      <section className="mb-5 overflow-hidden rounded-[var(--radius-card)] bg-gradient-to-br from-[#4f46e5] via-[#5b52f0] to-[#6366f1] p-6 text-white shadow-[var(--shadow-elevated)] print:hidden">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
+              Formulir Reimbursement Perjalanan Dinas
+            </p>
+            <h1 className="mt-1 truncate text-2xl font-bold tracking-tight">{r.title}</h1>
+            <p className="mt-2 text-sm text-white/80">
+              {fmtDate(r.periodStart)}
+              {r.periodStart.getTime() !== r.periodEnd.getTime() ? ` — ${fmtDate(r.periodEnd)}` : ""}
+              {" · "}
+              {r.lines.length} rincian
+            </p>
+          </div>
+          <span className={`shrink-0 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold ring-1 ring-white/25 backdrop-blur`}>
+            {STATUS_LABEL[r.status] ?? r.status}
+          </span>
         </div>
-        <span className="rounded-full bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)]">
-          {STATUS_LABEL[r.status] ?? r.status}
-        </span>
-      </header>
+        <div className="mt-5 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">Grand Total</p>
+            <p className="mt-0.5 font-mono text-3xl font-bold">{rp(r.totalAmount)}</p>
+          </div>
+          <div className="text-right text-[10px] font-semibold uppercase tracking-widest text-white/60">
+            <p>{employeeName}</p>
+            {r.user.division && <p className="mt-0.5 opacity-80">{r.user.division}</p>}
+          </div>
+        </div>
+      </section>
 
       {/* Title header (print — centered) */}
       <header className="mb-4 hidden text-center print:block">
@@ -77,7 +100,13 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       </header>
 
       {/* Header details */}
-      <section className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6 print-avoid-break">
+      <section className="card mb-4 p-6 print-avoid-break">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="section-title">Detail</h2>
+          <span className={`hidden print:inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold ring-1 ${STATUS_TONE[r.status] ?? ""}`}>
+            {STATUS_LABEL[r.status] ?? r.status}
+          </span>
+        </div>
         <HeaderEditor
           reimbursementId={r.id}
           title={r.title}
@@ -96,32 +125,43 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             label="Jangka Waktu / Time Period"
             value={`${fmtDate(r.periodStart)} — ${fmtDate(r.periodEnd)}`}
           />
-          <BoxedField label="Status" value={STATUS_LABEL[r.status] ?? r.status} pill />
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">Status</p>
+            <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ring-1 ${STATUS_TONE[r.status] ?? ""}`}>
+              {STATUS_LABEL[r.status] ?? r.status}
+            </span>
+          </div>
         </div>
       </section>
 
       {/* Rincian Biaya */}
-      <section className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6 print-avoid-break">
-        <h2 className="mb-3 font-semibold">Rincian Biaya / Expense Detail</h2>
-        <div className="overflow-x-auto">
+      <section className="card mb-4 p-6 print-avoid-break">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="section-title">Rincian Biaya / Expense Detail</h2>
+          <span className="hidden text-xs font-semibold text-[var(--color-ink-soft)] sm:inline">
+            {r.lines.length} {r.lines.length === 1 ? "row" : "rows"}
+          </span>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-[var(--color-outline)]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--color-outline)] text-left text-[10px] uppercase tracking-wide text-[var(--color-ink-soft)]">
-                <th className="py-2 pr-3">Expense Type</th>
-                <th className="py-2 pr-3">Tanggal</th>
-                <th className="py-2 pr-3">Tempat</th>
-                <th className="py-2 pr-3 text-right">Unit</th>
-                <th className="py-2 pr-3 text-right">Sat.</th>
-                <th className="py-2 pr-3 text-right">Unit Price</th>
-                <th className="py-2 pr-3 text-right">Total</th>
-                <th className="py-2 print:hidden" />
+              <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-container-high)]/50 text-left text-[10px] uppercase tracking-wide text-[var(--color-ink-soft)]">
+                <th className="py-2.5 pl-4 pr-3">Expense Type</th>
+                <th className="py-2.5 pr-3">Tanggal</th>
+                <th className="py-2.5 pr-3">Tempat</th>
+                <th className="py-2.5 pr-3 text-right">Unit</th>
+                <th className="py-2.5 pr-3 text-right">Sat.</th>
+                <th className="py-2.5 pr-3 text-right">Unit Price</th>
+                <th className="py-2.5 pr-3 text-right">Total</th>
+                <th className="py-2.5 pr-3 print:hidden" />
               </tr>
             </thead>
             <tbody>
               {r.lines.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-6 text-center text-sm text-[var(--color-ink-soft)]">
-                    Belum ada rincian.
+                  <td colSpan={8} className="py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                    <p className="mb-2 text-2xl opacity-40">📋</p>
+                    Belum ada rincian. Tambah dari tombol di bawah, atau drop struk di Chat / Scan.
                   </td>
                 </tr>
               ) : (
@@ -147,9 +187,9 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
               )}
             </tbody>
             <tfoot>
-              <tr>
-                <td colSpan={6} className="pt-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">TOTAL</td>
-                <td className="pt-3 text-right font-mono font-bold text-[var(--color-primary)]">{rp(r.totalAmount)}</td>
+              <tr className="bg-[var(--color-surface-container-high)]/40">
+                <td colSpan={6} className="py-3 pl-4 text-right text-[10px] font-semibold uppercase tracking-widest text-[var(--color-ink-soft)]">TOTAL</td>
+                <td className="py-3 pr-3 text-right font-mono text-base font-bold text-[var(--color-primary)]">{rp(r.totalAmount)}</td>
                 <td className="print:hidden" />
               </tr>
             </tfoot>
@@ -159,21 +199,21 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       </section>
 
       {/* Terbilang */}
-      <section className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-4 print-avoid-break">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">
-          Terbilang / Amount in Words <span className="normal-case italic text-[var(--color-primary)]">· otomatis / auto</span>
+      <section className="card-ai mb-4 p-5 print-avoid-break">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
+          ✨ Terbilang / Amount in Words <span className="ml-1 opacity-70">· otomatis / auto</span>
         </p>
-        <p className="mt-1 text-sm italic">{terbilangRupiah(r.totalAmount)}</p>
+        <p className="mt-1.5 text-sm italic">{terbilangRupiah(r.totalAmount)}</p>
       </section>
 
-      {/* Lampiran — screen only, saves print space */}
-      <section className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6 print:hidden">
-        <h2 className="mb-3 font-semibold">Lampiran / Attachments</h2>
+      {/* Lampiran — screen only */}
+      <section className="card mb-4 p-6 print:hidden">
+        <h2 className="section-title mb-4">Lampiran / Attachments</h2>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
           {r.lines.flatMap((l) =>
             l.attachments.map((a) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={a.id} src={a.imageUrl} alt={l.type} className="aspect-square rounded-lg border border-[var(--color-outline)] object-cover" />
+              <img key={a.id} src={a.imageUrl} alt={l.type} className="aspect-square rounded-xl border border-[var(--color-outline)] object-cover shadow-[var(--shadow-card)] transition hover:scale-[1.02]" />
             )),
           )}
           {r.lines.every((l) => l.attachments.length === 0) && (
@@ -186,8 +226,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         NB : Harap Lampirkan Bukti Pengeluaran bersama Formulir ini. / Please attach expense receipts with this form.
       </p>
 
-      {/* Signature footer — screen shows 3 columns; print shows 2 (per user's ask) */}
-      <section className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6 print-avoid-break">
+      {/* Signature footer */}
+      <section className="card mb-6 p-6 print-avoid-break">
         <div className="print:hidden">
           <SignatureFooter
             submittedBy={employeeName}
@@ -228,7 +268,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             className="ml-auto"
           >
             <input type="hidden" name="reimbursementId" value={r.id} />
-            <button className="rounded-[var(--radius-control)] border border-rose-500/50 px-3 py-2 text-xs text-rose-500 hover:bg-rose-500/10">
+            <button className="rounded-[var(--radius-control)] border border-rose-500/50 px-3 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-500/10">
               Hapus Formulir
             </button>
           </form>
@@ -238,19 +278,13 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   );
 }
 
-function BoxedField({ label, value, pill }: { label: string; value: string; pill?: boolean }) {
+function BoxedField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">{label}</p>
-      {pill ? (
-        <span className="inline-block rounded-full bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)]">
-          {value}
-        </span>
-      ) : (
-        <div className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-3 py-2 text-sm">
-          {value}
-        </div>
-      )}
+      <div className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-3 py-2.5 text-sm">
+        {value}
+      </div>
     </div>
   );
 }

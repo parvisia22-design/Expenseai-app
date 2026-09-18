@@ -12,13 +12,13 @@ const STATUS_LABEL: Record<string, string> = {
   REJECTED: "Ditolak",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  DRAFT: "bg-[var(--color-surface-container-high)] text-[var(--color-ink-soft)]",
-  SUBMITTED: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  SUPERVISOR_APPROVED: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  FINANCE_APPROVED: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  REIMBURSED: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  REJECTED: "bg-rose-500/15 text-rose-600",
+const STATUS_TONE: Record<string, string> = {
+  DRAFT: "bg-slate-500/10 text-slate-600 ring-slate-500/20",
+  SUBMITTED: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+  SUPERVISOR_APPROVED: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+  FINANCE_APPROVED: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+  REIMBURSED: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+  REJECTED: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
 };
 
 export default async function ReimbursementsPage() {
@@ -49,27 +49,31 @@ export default async function ReimbursementsPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Formulir Reimbursement</h1>
-        <Link href="/chat" className="rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3 py-1.5 text-sm font-semibold text-white">
-          + New
+      {/* Hero */}
+      <section className="mb-5 overflow-hidden rounded-[var(--radius-card)] bg-gradient-to-br from-[#4f46e5] via-[#5b52f0] to-[#6366f1] p-6 text-white shadow-[var(--shadow-elevated)]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">Bulan Ini</p>
+        <p className="mt-1 font-mono text-3xl font-bold">{rp(monthAgg._sum.totalAmount ?? 0)}</p>
+        <p className="mt-1 text-xs text-white/80">{monthAgg._count} formulir</p>
+        <Link href="/chat" className="mt-4 inline-flex items-center gap-1 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-[var(--color-primary)] shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+          + Buat Formulir Baru
         </Link>
-      </header>
-
-      {/* Monthly summary */}
-      <section className="mb-6 grid grid-cols-3 gap-2">
-        <Stat label="Bulan ini" value={rp(monthAgg._sum.totalAmount ?? 0)} accent />
-        <Stat label="Draft" value={String(draftCount)} />
-        <Stat label="Pending" value={String(pendingCount)} />
       </section>
-      <ul className="space-y-2">
+
+      {/* Stats */}
+      <section className="mb-6 grid grid-cols-2 gap-3">
+        <MiniStat label="Draft" value={draftCount} accent="slate" icon="📝" />
+        <MiniStat label="Menunggu" value={pendingCount} accent="amber" icon="⏳" />
+      </section>
+
+      <h2 className="section-title mb-3">Semua Formulir</h2>
+      <ul className="space-y-2.5">
         {rows.map((r) => (
           <li key={r.id}>
-            <Link href={`/report/${r.id}`} className="block rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-4 hover:bg-[var(--color-surface-container)]">
+            <Link href={`/report/${r.id}`} className="card block p-4 transition hover:shadow-[var(--shadow-elevated)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{r.title}</p>
-                  <p className="text-xs text-[var(--color-ink-soft)]">
+                  <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">
                     {fmtDate(r.periodStart)}
                     {r.periodStart.getTime() !== r.periodEnd.getTime() ? ` — ${fmtDate(r.periodEnd)}` : ""}
                     {" · "}
@@ -78,7 +82,7 @@ export default async function ReimbursementsPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-sm font-bold text-[var(--color-primary)]">{rp(r.totalAmount)}</p>
-                  <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_COLOR[r.status] ?? ""}`}>
+                  <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${STATUS_TONE[r.status] ?? ""}`}>
                     {STATUS_LABEL[r.status] ?? r.status}
                   </span>
                 </div>
@@ -87,8 +91,12 @@ export default async function ReimbursementsPage() {
           </li>
         ))}
         {rows.length === 0 && (
-          <li className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-outline)] py-12 text-center text-sm text-[var(--color-ink-soft)]">
-            Belum ada formulir. Mulai dari <Link className="text-[var(--color-primary)] font-semibold" href="/chat">chat</Link>.
+          <li className="card p-10 text-center">
+            <p className="mb-2 text-3xl opacity-40">📋</p>
+            <p className="text-sm text-[var(--color-ink-soft)]">
+              Belum ada formulir. Mulai dari <Link className="font-semibold text-[var(--color-primary)]" href="/chat">chat</Link> atau{" "}
+              <Link className="font-semibold text-[var(--color-primary)]" href="/scan">scan struk</Link>.
+            </p>
           </li>
         )}
       </ul>
@@ -96,11 +104,16 @@ export default async function ReimbursementsPage() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function MiniStat({ label, value, icon }: { label: string; value: number; accent: string; icon: string }) {
   return (
-    <div className={`rounded-[var(--radius-card)] border border-[var(--color-outline)] p-3 ${accent ? "bg-[var(--color-primary-soft)]" : "bg-[var(--color-surface-container-low)]"}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">{label}</p>
-      <p className={`mt-1 truncate font-mono text-sm font-bold ${accent ? "text-[var(--color-primary)]" : ""}`}>{value}</p>
+    <div className="card p-3">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{icon}</span>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">{label}</p>
+          <p className="font-mono text-lg font-bold">{value}</p>
+        </div>
+      </div>
     </div>
   );
 }
