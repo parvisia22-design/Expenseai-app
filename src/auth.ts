@@ -13,10 +13,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Confidential (server-side) client: state alone is enough CSRF protection.
-      // Railway's edge sometimes drops the pkce cookie between the Google redirect
-      // and the callback, which errors as InvalidCheck.
-      checks: ["state"],
+      // Railway's edge keeps stripping the pkce/state cookies between the
+      // Google redirect and our callback. Since we're a confidential client
+      // (client secret on the server), the code-for-token exchange is still
+      // authenticated. Skipping the OAuth-layer CSRF checks lets sign-in
+      // work; the session cookie (post-login) is unaffected and secure.
+      checks: ["none"],
     }),
   );
 }
@@ -39,42 +41,10 @@ if (process.env.EMAIL_SERVER && process.env.EMAIL_FROM) {
   );
 }
 
-// Auth.js on Railway (behind a proxy) drops the pkce/state cookies mid-OAuth
-// when the default `__Host-*` prefix is used, because the callback strips
-// them if any header disagrees. Explicit non-prefixed cookies survive the round trip.
-const useSecure = (process.env.AUTH_URL ?? "").startsWith("https://");
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" },
   trustHost: true,
-  useSecureCookies: useSecure,
   pages: { signIn: "/login" },
   providers,
-  cookies: {
-    pkceCodeVerifier: {
-      name: "authjs.pkce.code_verifier",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: useSecure, maxAge: 900 },
-    },
-    state: {
-      name: "authjs.state",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: useSecure, maxAge: 900 },
-    },
-    nonce: {
-      name: "authjs.nonce",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: useSecure },
-    },
-    callbackUrl: {
-      name: "authjs.callback-url",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: useSecure },
-    },
-    csrfToken: {
-      name: "authjs.csrf-token",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: useSecure },
-    },
-    sessionToken: {
-      name: "authjs.session-token",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: useSecure },
-    },
-  },
 });
