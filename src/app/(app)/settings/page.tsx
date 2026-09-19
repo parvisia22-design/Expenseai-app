@@ -4,6 +4,7 @@ import { saveProfile } from "@/lib/profile/actions";
 import Link from "next/link";
 import { ProfileForm } from "@/components/settings/ProfileForm";
 import { ThemeToggle } from "@/components/settings/ThemeToggle";
+import { LocaleToggle } from "@/components/settings/LocaleToggle";
 import { Icon } from "@/components/ui/Icon";
 
 export default async function SettingsPage() {
@@ -26,8 +27,10 @@ export default async function SettingsPage() {
       />
 
       <ThemeToggle />
+      <LocaleToggle />
 
       <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl border border-[var(--color-outline-variant)]/25 shadow-sm divide-y divide-[var(--color-outline-variant)]/25">
+        <SettingsLink href="/search" icon="search" title="Cari" subtitle="Lintas semua rincian" />
         <SettingsLink href="/budgets" icon="account_balance_wallet" title="Budget" subtitle="Batas pengeluaran per tujuan" />
         <SettingsLink href="/templates" icon="bookmark_add" title="Template" subtitle="Rute berulang sekali klik" />
         <SettingsLink href="/route" icon="route" title="Trip / Route" subtitle="Kalkulator jarak + toll" />

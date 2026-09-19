@@ -71,8 +71,20 @@ export function ChatShell({ userName }: { userName: string }) {
     const fd = new FormData();
     fd.set("image", shrunk);
     if (currentPurpose) fd.set("purpose", currentPurpose);
-    const r = await fetch("/api/ocr", { method: "POST", body: fd }).then((res) => res.json());
+    const res = await fetch("/api/ocr", { method: "POST", body: fd });
+    const r = await res.json();
     setBusy(false);
+    if (r.duplicate) {
+      setMessages((m) => [
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: `⚠️ Duplikat: struk ini sudah pernah di-upload. Buka: /report/${r.reimbursementId}`,
+        },
+      ]);
+      return;
+    }
     if (!r.extract) {
       setMessages((m) => [
         ...m,

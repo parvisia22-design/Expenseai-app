@@ -31,6 +31,9 @@ export function ScanClient({ suggestedPurpose }: { suggestedPurpose: string }) {
       fd.set("purpose", purpose.trim() || "Uncategorized");
       const res = await fetch("/api/ocr", { method: "POST", body: fd });
       const data = await res.json();
+      if (data.duplicate) {
+        throw new Error(`Duplikat: struk ini sudah pernah di-upload (report ${data.reimbursementId}).`);
+      }
       if (!res.ok) throw new Error(data.error ?? "OCR failed");
       setResult(data);
     } catch (e) {

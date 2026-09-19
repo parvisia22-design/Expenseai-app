@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { auth } from "@/auth";
 import { extractReceipt } from "@/lib/ocr/claude-vision";
 import { saveImage } from "@/lib/storage/local";
 import { addLineWithAttachment, upsertOpenReimbursement } from "@/lib/expense/group";
+import { prisma } from "@/lib/db/prisma";
 import type { ExpenseType } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -23,6 +25,22 @@ export async function POST(req: NextRequest) {
 
   const buf = Buffer.from(await file.arrayBuffer());
   const mediaType = file.type || "image/jpeg";
+  const imageHash = createHash("sha256").update(buf).digest("hex");
+
+  // Duplicate detection — same image already ingested for this user?
+  const existing = await prisma.expenseLine.findFirst({
+    where: { userId, imageHash },
+    select: { id: true, reimbursementId: true, amount: true, date: true },
+  });
+  if (existing) {
+    return NextResponse.json({
+      duplicate: true,
+      reimbursementId: existing.reimbursementId,
+      lineId: existing.id,
+      hash: imageHash,
+      message: "Struk ini sudah pernah di-upload sebelumnya.",
+    }, { status: 409 });
+  }
 
   const [stored, extract] = await Promise.all([
     saveImage(buf, mediaType),
@@ -64,6 +82,7 @@ export async function POST(req: NextRequest) {
     purpose,
     imageUrl: stored.url,
     ocrJson: extract,
+    imageHash,
   });
 
   return NextResponse.json({

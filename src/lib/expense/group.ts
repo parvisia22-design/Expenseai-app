@@ -44,6 +44,7 @@ export async function addLineWithAttachment(opts: {
   purpose?: string | null;
   imageUrl: string;
   ocrJson?: unknown;
+  imageHash?: string | null;
 }) {
   const line = await prisma.expenseLine.create({
     data: {
@@ -53,6 +54,7 @@ export async function addLineWithAttachment(opts: {
       type: opts.type,
       purpose: opts.purpose ?? null,
       amount: opts.amount ?? 0,
+      imageHash: opts.imageHash ?? null,
       ocrJson: opts.ocrJson as Prisma.InputJsonValue,
       attachments: {
         create: {

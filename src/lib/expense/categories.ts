@@ -34,4 +34,5 @@ const LABELS: Record<ExpenseType, string> = {
   LODGING: "Hotel",
 };
 
-export const labelFor = (t: ExpenseType | string) => LABELS[t as ExpenseType] ?? String(t);
+export const labelFor = (t: ExpenseType | string, customType?: string | null) =>
+  customType?.trim() || LABELS[t as ExpenseType] || String(t);
