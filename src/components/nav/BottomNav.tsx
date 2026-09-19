@@ -6,8 +6,8 @@ import { Icon } from "@/components/ui/Icon";
 const TABS = [
   { href: "/chat", label: "Copilot", icon: "chat_spark" },
   { href: "/scan", label: "Scanner", icon: "document_scanner" },
-  { href: "/route", label: "Trips", icon: "route" },
   { href: "/reimbursements", label: "Reports", icon: "folder_shared" },
+  { href: "/analytics", label: "Insights", icon: "insights" },
   { href: "/settings", label: "You", icon: "account_circle" },
 ];
 

@@ -15,6 +15,7 @@ import { submitReimbursement } from "@/lib/expense/group";
 import { ApprovalActions } from "@/components/report/ApprovalActions";
 import { terbilangRupiah } from "@/lib/format/terbilang";
 import { PrintForm } from "@/components/report/PrintForm";
+import { AttachmentGallery } from "@/components/report/AttachmentLightbox";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft", SUBMITTED: "Menunggu Supervisor",
@@ -234,13 +235,28 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       {editable && <div className="print:hidden"><AddLineForm reimbursementId={r.id} defaultDate={defaultDate} /></div>}
 
       {/* Terbilang */}
-      <section className="bg-gradient-to-br from-[var(--color-primary-fixed)] to-[var(--color-primary-fixed)]/50 rounded-2xl p-4 border border-[var(--color-primary)]/20 shadow-sm print-avoid-break">
+      <section className="bg-gradient-to-br from-[var(--color-primary-fixed)] to-[var(--color-primary-fixed)]/50 rounded-2xl p-4 border border-[var(--color-primary)]/20 shadow-sm print:hidden">
         <div className="flex items-center gap-1.5 text-[var(--color-on-primary-fixed-variant)]">
           <Icon name="auto_awesome" size={16} />
-          <span className="text-label-md">Terbilang / Amount in Words · otomatis</span>
+          <span className="text-label-md">Terbilang / Amount in Words · {r.terbilangOverride ? "custom" : "otomatis"}</span>
         </div>
-        <p className="mt-1.5 text-body-md italic text-[var(--color-on-surface)]">{terbilangRupiah(r.totalAmount)}</p>
+        <p className="mt-1.5 text-body-md italic text-[var(--color-on-surface)]">{r.terbilangOverride ?? terbilangRupiah(r.totalAmount)}</p>
       </section>
+
+      {/* Lampiran gallery */}
+      {r.lines.some((l) => l.attachments.length > 0) && (
+        <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl p-4 border border-[var(--color-outline-variant)]/25 shadow-sm print:hidden">
+          <div className="flex items-center gap-2 mb-3">
+            <Icon name="attach_file" size={18} className="text-[var(--color-primary)]" />
+            <h2 className="text-headline-sm text-[var(--color-on-surface)]">Lampiran</h2>
+          </div>
+          <AttachmentGallery
+            items={r.lines.flatMap((l) =>
+              l.attachments.map((a) => ({ id: a.id, imageUrl: a.imageUrl, label: l.description ?? l.placeText ?? "" })),
+            )}
+          />
+        </section>
+      )}
 
       {/* Signature footer — screen only (print handled by PrintForm above) */}
       <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl p-5 border border-[var(--color-outline-variant)]/20 shadow-sm print:hidden">

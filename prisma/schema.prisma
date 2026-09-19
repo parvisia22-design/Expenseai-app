@@ -32,6 +32,12 @@ model User {
   places         Place[]
   routePresets   RoutePreset[]
   purposeLinks   PurposeLink[]
+  budgets        Budget[]
+  templates      RecurringTemplate[]
+
+  // Preferences
+  themePref      String?     // "light" | "dark" | null (system)
+  localePref     String?     // "id" | "en" | null (id default)
 }
 
 model Account {
@@ -123,28 +129,65 @@ model Place {
 
 // The parent form — one row = one printable "Formulir Reimbursement Perjalanan Dinas".
 model Reimbursement {
-  id             String              @id @default(cuid())
-  userId         String
-  title          String              // "Perjalanan Dinas Jakarta - Bandung"
-  purpose        String              // Tujuan
-  visitedPlace   String?             // Tempat yang dikunjungi (freeform)
-  periodStart    DateTime            // Jangka Waktu (start)
-  periodEnd      DateTime            // Jangka Waktu (end)
-  status         ReimbursementStatus @default(DRAFT)
-  totalAmount    Int                 @default(0)  // sum of lines
-  currency       String              @default("IDR")
-  notes          String?
-  submittedAt    DateTime?
-  supervisorAt   DateTime?
-  financeAt      DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id                 String              @id @default(cuid())
+  userId             String
+  title              String              // "Perjalanan Dinas Jakarta - Bandung"
+  purpose            String              // Tujuan
+  visitedPlace       String?             // Tempat yang dikunjungi (freeform)
+  periodStart        DateTime            // Jangka Waktu (start)
+  periodEnd          DateTime            // Jangka Waktu (end)
+  status             ReimbursementStatus @default(DRAFT)
+  totalAmount        Int                 @default(0)  // sum of lines
+  currency           String              @default("IDR")
+  notes              String?
+  terbilangOverride  String?
+  submittedAt        DateTime?
+  supervisorAt       DateTime?
+  financeAt          DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   lines ExpenseLine[]
 
   @@index([userId, periodStart])
   @@index([userId, status])
+}
+
+// Custom category name for OTHER-typed lines (Business Brochure, Package Delivery…)
+model Budget {
+  id         String   @id @default(cuid())
+  userId     String
+  purpose    String   // Drone, Meeting Klien
+  amount     Int      // monthly cap in IDR
+  period     String   @default("MONTHLY") // MONTHLY | QUARTERLY | YEARLY
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, purpose])
+  @@index([userId])
+}
+
+model RecurringTemplate {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String   // "Kantor → Pabrik Jatake (Drone)"
+  purpose     String
+  originText  String?
+  destText    String?
+  distanceKm  Float?
+  tollAmount  Int      @default(0)
+  parkingAmount Int    @default(0)
+  mealAmount  Int      @default(0)
+  lastUsedAt  DateTime?
+  useCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Rincian Biaya — a single row in the reimbursement's expense table.
@@ -154,6 +197,7 @@ model ExpenseLine {
   reimbursementId String?
   date            DateTime
   type            ExpenseType
+  customType      String?     // when type=OTHER, holds "Business Brochure (sample)" etc.
   purpose         String?     // Tujuan (optional, defaults to parent)
   originId        String?
   destId          String?
@@ -165,6 +209,7 @@ model ExpenseLine {
   amount          Int         @default(0)
   mileageKm       Float?
   ocrJson         Json?
+  imageHash       String?     // sha256 for duplicate detection
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
