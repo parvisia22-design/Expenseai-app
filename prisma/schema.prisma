@@ -20,6 +20,9 @@ model User {
   displayName    String?
   division       String?
   employeeNumber String?
+  companyName    String?
+  supervisorName String?
+  financeName    String?
 
   accounts      Account[]
   sessions      Session[]

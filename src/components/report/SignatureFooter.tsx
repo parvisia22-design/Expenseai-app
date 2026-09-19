@@ -2,8 +2,8 @@ import { fmtDate } from "@/lib/format";
 
 type Props = {
   submittedBy: string;
-  supervisorName?: string;
-  financeName?: string;
+  supervisorName?: string | null;
+  financeName?: string | null;
   submittedAt: Date | null;
   supervisorAt: Date | null;
   financeAt: Date | null;

@@ -14,6 +14,7 @@ import { deleteReimbursement } from "@/lib/expense/actions";
 import { submitReimbursement } from "@/lib/expense/group";
 import { ApprovalActions } from "@/components/report/ApprovalActions";
 import { terbilangRupiah } from "@/lib/format/terbilang";
+import { PrintForm } from "@/components/report/PrintForm";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft", SUBMITTED: "Menunggu Supervisor",
@@ -80,23 +81,25 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         </div>
       </section>
 
-      {/* Print header */}
-      <header className="hidden text-center print:block mb-2">
-        <h1 className="text-lg font-bold">Formulir Reimbursement Perjalanan Dinas</h1>
-        <p className="text-xs text-slate-600">Business Travel Reimbursement Form</p>
-      </header>
-
-      {/* Print form fields */}
-      <section className="hidden print:block card p-4">
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <PrintRow label="Nama Karyawan / Staff's Name" value={employeeName} />
-          <PrintRow label="Divisi / Division" value={r.user.division ?? "—"} />
-          <PrintRow label="Tempat / Visited Place" value={r.visitedPlace ?? "—"} />
-          <PrintRow label="Tujuan / Purpose" value={r.purpose} />
-          <PrintRow label="Jangka Waktu / Time Period" value={`${fmtDate(r.periodStart)} — ${fmtDate(r.periodEnd)}`} />
-          <PrintRow label="Status" value={STATUS_LABEL[r.status] ?? r.status} />
-        </div>
-      </section>
+      {/* Excel-style print form */}
+      <PrintForm
+        companyName={r.user.companyName ?? ""}
+        employeeName={employeeName}
+        division={r.user.division ?? ""}
+        visitedPlace={r.visitedPlace ?? ""}
+        purpose={r.purpose}
+        periodStart={r.periodStart}
+        periodEnd={r.periodEnd}
+        totalAmount={r.totalAmount}
+        supervisorName={r.user.supervisorName ?? "Supervisor"}
+        lines={r.lines.map((l) => ({
+          type: l.type,
+          amount: l.amount,
+          quantity: l.quantity,
+          unit: l.unit,
+          unitPrice: l.unitPrice,
+        }))}
+      />
 
       {/* Summary Bento (Total + metrics) */}
       <section className="grid grid-cols-2 gap-3 print:hidden">
@@ -239,56 +242,17 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <p className="mt-1.5 text-body-md italic text-[var(--color-on-surface)]">{terbilangRupiah(r.totalAmount)}</p>
       </section>
 
-      {/* Print: expense table */}
-      <section className="hidden print:block card p-4">
-        <h2 className="mb-2 font-bold">Rincian Biaya / Expense Detail</h2>
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-slate-300 text-left uppercase text-slate-600">
-              <th className="py-1 pr-2">Type</th>
-              <th className="py-1 pr-2">Tanggal</th>
-              <th className="py-1 pr-2">Tempat</th>
-              <th className="py-1 pr-2 text-right">Unit</th>
-              <th className="py-1 pr-2 text-right">Sat.</th>
-              <th className="py-1 pr-2 text-right">Unit Price</th>
-              <th className="py-1 pr-2 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {r.lines.map((l) => (
-              <tr key={l.id} className="border-b border-slate-200">
-                <td className="py-1 pr-2">{(CATEGORY_META[l.type] ?? CATEGORY_META.OTHER).label}</td>
-                <td className="py-1 pr-2">{iso(l.date)}</td>
-                <td className="py-1 pr-2">{l.destination?.name ?? l.placeText ?? "—"}</td>
-                <td className="py-1 pr-2 text-right">{l.unit ?? "—"}</td>
-                <td className="py-1 pr-2 text-right">{l.quantity ?? "—"}</td>
-                <td className="py-1 pr-2 text-right">{l.unitPrice != null ? rp(l.unitPrice) : "—"}</td>
-                <td className="py-1 pr-2 text-right font-semibold">{rp(l.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={6} className="py-2 text-right font-bold">GRAND TOTAL</td>
-              <td className="py-2 text-right font-bold">{rp(r.totalAmount)}</td>
-            </tr>
-          </tfoot>
-        </table>
-        <p className="mt-2 text-[10px] italic text-slate-600">Terbilang: {terbilangRupiah(r.totalAmount)}</p>
-      </section>
-
-      <p className="mb-3 hidden border-t border-slate-300 pt-2 text-[10px] italic text-slate-600 print:block">
-        NB : Harap Lampirkan Bukti Pengeluaran bersama Formulir ini.
-      </p>
-
-      {/* Signature footer */}
-      <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl p-5 border border-[var(--color-outline-variant)]/20 shadow-sm print-avoid-break">
-        <div className="print:hidden">
-          <SignatureFooter submittedBy={employeeName} submittedAt={r.submittedAt ?? r.createdAt} supervisorAt={r.supervisorAt} financeAt={r.financeAt} showFinance />
-        </div>
-        <div className="hidden print:block">
-          <SignatureFooter submittedBy={employeeName} submittedAt={r.submittedAt ?? r.createdAt} supervisorAt={r.supervisorAt} financeAt={r.financeAt} showFinance={false} />
-        </div>
+      {/* Signature footer — screen only (print handled by PrintForm above) */}
+      <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl p-5 border border-[var(--color-outline-variant)]/20 shadow-sm print:hidden">
+        <SignatureFooter
+          submittedBy={employeeName}
+          submittedAt={r.submittedAt ?? r.createdAt}
+          supervisorAt={r.supervisorAt}
+          financeAt={r.financeAt}
+          supervisorName={r.user.supervisorName ?? undefined}
+          financeName={r.user.financeName ?? undefined}
+          showFinance
+        />
       </section>
 
       {/* Sticky action bar */}
@@ -348,11 +312,3 @@ function FieldRow({ icon, label, value }: { icon: string; label: string; value: 
   );
 }
 
-function PrintRow({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <div className="text-slate-600">{label}</div>
-      <div className="font-medium">{value}</div>
-    </>
-  );
-}

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 type Props = {
   action: (fd: FormData) => Promise<void>;
@@ -7,6 +8,9 @@ type Props = {
   displayName: string;
   division: string;
   employeeNumber: string;
+  companyName: string;
+  supervisorName: string;
+  financeName: string;
 };
 
 export function ProfileForm(p: Props) {
@@ -22,15 +26,27 @@ export function ProfileForm(p: Props) {
           setTimeout(() => setSaved(false), 2500);
         });
       }}
-      className="space-y-3 rounded-[var(--radius-card)] border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] p-6"
+      className="space-y-4"
     >
-      <Field label="Email" value={p.email} disabled />
-      <Field label="Nama Karyawan / Staff's Name" name="displayName" defaultValue={p.displayName} />
-      <Field label="Divisi / Division" name="division" defaultValue={p.division} />
-      <Field label="Nomor Karyawan / Employee No." name="employeeNumber" defaultValue={p.employeeNumber} />
+      <Section title="Anda" icon="person">
+        <Field label="Email" value={p.email} disabled />
+        <Field label="Nama Karyawan / Staff's Name" name="displayName" defaultValue={p.displayName} />
+        <Field label="Divisi / Division" name="division" defaultValue={p.division} />
+        <Field label="Nomor Karyawan / Employee No." name="employeeNumber" defaultValue={p.employeeNumber} />
+      </Section>
+
+      <Section title="Perusahaan" icon="apartment">
+        <Field label="Nama Perusahaan / Company Name" name="companyName" defaultValue={p.companyName} placeholder="PT. ORIENTAL SHEET PILING" />
+      </Section>
+
+      <Section title="Persetujuan" icon="verified_user">
+        <Field label="Nama Supervisor / Approver" name="supervisorName" defaultValue={p.supervisorName} placeholder="Soejanto" />
+        <Field label="Nama Finance" name="financeName" defaultValue={p.financeName} />
+      </Section>
+
       <button
         disabled={pending}
-        className="w-full rounded-[var(--radius-control)] bg-[var(--color-primary)] py-3 text-sm font-semibold text-white disabled:opacity-40"
+        className="w-full rounded-2xl bg-[var(--color-primary-container)] py-3 text-label-lg text-[var(--color-on-primary)] disabled:opacity-40 shadow-sm"
       >
         {pending ? "Menyimpan…" : saved ? "✓ Tersimpan" : "Simpan / Save"}
       </button>
@@ -38,17 +54,30 @@ export function ProfileForm(p: Props) {
   );
 }
 
-function Field(p: { label: string; name?: string; defaultValue?: string; value?: string; disabled?: boolean }) {
+function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+  return (
+    <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl p-4 border border-[var(--color-outline-variant)]/25 shadow-sm space-y-3">
+      <div className="flex items-center gap-2">
+        <Icon name={icon} size={18} className="text-[var(--color-primary)]" />
+        <h2 className="text-headline-sm text-[var(--color-on-surface)]">{title}</h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field(p: { label: string; name?: string; defaultValue?: string; value?: string; disabled?: boolean; placeholder?: string }) {
   return (
     <label className="block space-y-1">
-      <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]">{p.label}</span>
+      <span className="text-label-sm text-[var(--color-on-surface-variant)]">{p.label}</span>
       <input
         name={p.name}
         defaultValue={p.defaultValue}
         value={p.value}
         disabled={p.disabled}
         readOnly={p.disabled}
-        className="w-full rounded-[var(--radius-control)] border border-[var(--color-outline)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary-tint)] disabled:opacity-60"
+        placeholder={p.placeholder}
+        className="w-full rounded-xl border border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-low)] px-3 py-2 text-body-md outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:opacity-60"
       />
     </label>
   );

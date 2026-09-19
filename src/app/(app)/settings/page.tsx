@@ -8,8 +8,8 @@ export default async function SettingsPage() {
   const me = await prisma.user.findUnique({ where: { id: session!.user!.id } });
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Profil</h1>
+    <main className="max-w-md mx-auto px-4 pt-4 space-y-4">
+      <h1 className="text-headline-lg text-[var(--color-on-surface)]">Profil</h1>
 
       <ProfileForm
         action={saveProfile}
@@ -17,10 +17,13 @@ export default async function SettingsPage() {
         displayName={me?.displayName ?? ""}
         division={me?.division ?? ""}
         employeeNumber={me?.employeeNumber ?? ""}
+        companyName={me?.companyName ?? ""}
+        supervisorName={me?.supervisorName ?? ""}
+        financeName={me?.financeName ?? ""}
       />
 
       <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
-        <button className="w-full rounded-[var(--radius-control)] border border-[var(--color-outline)] py-3 text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-surface-container)]">
+        <button className="w-full rounded-2xl border border-[var(--color-outline-variant)]/40 py-3 text-sm text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-container)]">
           Sign out
         </button>
       </form>
