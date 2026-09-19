@@ -149,9 +149,31 @@ model Reimbursement {
 
   user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   lines ExpenseLine[]
+  trips Trip[]
 
   @@index([userId, periodStart])
   @@index([userId, status])
+}
+
+// Optional intermediate: a Reimbursement Period can group multiple Trips
+// (e.g. Excel sub-sheets "9-12 Nov", "23 Nov", "24 Nov"). ExpenseLines
+// may attach to a specific Trip within the period, or hang directly off the
+// Reimbursement if there's only one implicit trip.
+model Trip {
+  id              String   @id @default(cuid())
+  reimbursementId String
+  label           String   // "9-12 Nov" or "Site Visit Jatake"
+  visitedPlace    String?
+  purpose         String?
+  startDate       DateTime
+  endDate         DateTime
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  reimbursement Reimbursement @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+  lines         ExpenseLine[]
+
+  @@index([reimbursementId])
 }
 
 // Custom category name for OTHER-typed lines (Business Brochure, Package Delivery…)
@@ -195,6 +217,7 @@ model ExpenseLine {
   id              String      @id @default(cuid())
   userId          String
   reimbursementId String?
+  tripId          String?
   date            DateTime
   type            ExpenseType
   customType      String?     // when type=OTHER, holds "Business Brochure (sample)" etc.
@@ -215,12 +238,14 @@ model ExpenseLine {
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   reimbursement Reimbursement? @relation(fields: [reimbursementId], references: [id], onDelete: SetNull)
+  trip          Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
   origin        Place?         @relation("LineOrigin", fields: [originId], references: [id])
   destination   Place?         @relation("LineDest",   fields: [destId],   references: [id])
   attachments   Attachment[]
 
   @@index([userId, date])
   @@index([reimbursementId])
+  @@index([tripId])
 }
 
 model Attachment {

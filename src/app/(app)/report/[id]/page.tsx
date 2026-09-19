@@ -16,6 +16,7 @@ import { ApprovalActions } from "@/components/report/ApprovalActions";
 import { terbilangRupiah } from "@/lib/format/terbilang";
 import { PrintForm } from "@/components/report/PrintForm";
 import { AttachmentGallery } from "@/components/report/AttachmentLightbox";
+import { TripsSection } from "@/components/report/TripsSection";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft", SUBMITTED: "Menunggu Supervisor",
@@ -34,6 +35,10 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     include: {
       user: true,
       lines: { include: { attachments: true, destination: true }, orderBy: { date: "asc" } },
+      trips: {
+        include: { _count: { select: { lines: true } }, lines: { select: { amount: true } } },
+        orderBy: [{ sortOrder: "asc" }, { startDate: "asc" }],
+      },
     },
   });
   if (!r) notFound();
@@ -117,6 +122,23 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <MetricTile label="Dossier Size" value={`${r.lines.length} Expenses`} icon="layers" bottom={`${attachmentCount} OCR bukti`} accent="primary" />
         <MetricTile label="Status" value={STATUS_LABEL[r.status] ?? r.status} icon="verified_user" bottom={editable ? "Editable" : "Locked"} accent="secondary" />
       </section>
+
+      {/* Sub-trips (multi-day periods) */}
+      <TripsSection
+        reimbursementId={r.id}
+        editable={editable}
+        defaultDate={defaultDate}
+        trips={r.trips.map((t) => ({
+          id: t.id,
+          label: t.label,
+          visitedPlace: t.visitedPlace,
+          purpose: t.purpose,
+          startDate: iso(t.startDate),
+          endDate: iso(t.endDate),
+          lineCount: t._count.lines,
+          totalAmount: t.lines.reduce((n, l) => n + l.amount, 0),
+        }))}
+      />
 
       {/* Header details (editable) */}
       <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl p-4 border border-[var(--color-outline-variant)]/25 shadow-sm print:hidden">
