@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { requireOrgContext } from "@/lib/org/context";
 import { prisma } from "@/lib/db/prisma";
 import { rp, fmtDate } from "@/lib/format";
 
@@ -22,8 +22,9 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 export default async function ReimbursementsPage() {
-  const session = await auth();
-  const userId = session!.user!.id;
+  const ctx = await requireOrgContext();
+  const userId = ctx.userId;
+  const orgId = ctx.membership.orgId;
 
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -31,20 +32,20 @@ export default async function ReimbursementsPage() {
 
   const [rows, monthAgg, pendingCount, draftCount] = await Promise.all([
     prisma.reimbursement.findMany({
-      where: { userId },
+      where: { userId, orgId },
       include: { _count: { select: { lines: true } } },
       orderBy: { updatedAt: "desc" },
       take: 50,
     }),
     prisma.reimbursement.aggregate({
-      where: { userId, periodStart: { gte: monthStart } },
+      where: { userId, orgId, periodStart: { gte: monthStart } },
       _sum: { totalAmount: true },
       _count: true,
     }),
     prisma.reimbursement.count({
-      where: { userId, status: { in: ["SUBMITTED", "SUPERVISOR_APPROVED"] } },
+      where: { userId, orgId, status: { in: ["SUBMITTED", "SUPERVISOR_APPROVED"] } },
     }),
-    prisma.reimbursement.count({ where: { userId, status: "DRAFT" } }),
+    prisma.reimbursement.count({ where: { userId, orgId, status: "DRAFT" } }),
   ]);
 
   return (

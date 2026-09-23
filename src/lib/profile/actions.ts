@@ -3,14 +3,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
+import { getOrgContext } from "@/lib/org/context";
 
 const ProfileInput = z.object({
   displayName: z.string().optional(),
   division: z.string().optional(),
   employeeNumber: z.string().optional(),
-  companyName: z.string().optional(),
-  supervisorName: z.string().optional(),
-  financeName: z.string().optional(),
 });
 
 export async function saveProfile(fd: FormData) {
@@ -20,9 +18,6 @@ export async function saveProfile(fd: FormData) {
     displayName: fd.get("displayName") ?? undefined,
     division: fd.get("division") ?? undefined,
     employeeNumber: fd.get("employeeNumber") ?? undefined,
-    companyName: fd.get("companyName") ?? undefined,
-    supervisorName: fd.get("supervisorName") ?? undefined,
-    financeName: fd.get("financeName") ?? undefined,
   });
   await prisma.user.update({
     where: { id: s.user.id },
@@ -30,10 +25,18 @@ export async function saveProfile(fd: FormData) {
       displayName: parsed.displayName?.trim() || null,
       division: parsed.division?.trim() || null,
       employeeNumber: parsed.employeeNumber?.trim() || null,
-      companyName: parsed.companyName?.trim() || null,
-      supervisorName: parsed.supervisorName?.trim() || null,
-      financeName: parsed.financeName?.trim() || null,
     },
   });
+  // Division / employee no. are printed from the company membership.
+  const ctx = await getOrgContext();
+  if (ctx?.membership) {
+    await prisma.membership.update({
+      where: { id: ctx.membership.id },
+      data: {
+        division: parsed.division?.trim() || null,
+        employeeNumber: parsed.employeeNumber?.trim() || null,
+      },
+    });
+  }
   revalidatePath("/settings");
 }

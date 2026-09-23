@@ -17,6 +17,8 @@ import { terbilangRupiah } from "@/lib/format/terbilang";
 import { PrintForm } from "@/components/report/PrintForm";
 import { AttachmentGallery } from "@/components/report/AttachmentLightbox";
 import { TripsSection } from "@/components/report/TripsSection";
+import { can, requireOrgContext } from "@/lib/org/context";
+import { approvalPermissions } from "@/lib/org/approval";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft", SUBMITTED: "Menunggu Supervisor",
@@ -27,13 +29,15 @@ const STATUS_LABEL: Record<string, string> = {
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const ctx = await requireOrgContext();
+  const { membership } = ctx;
   const { id } = await params;
 
   const r = await prisma.reimbursement.findFirst({
-    where: { id, userId: session!.user!.id },
+    where: { id, orgId: membership.orgId },
     include: {
       user: true,
+      org: true,
       lines: { include: { attachments: true, destination: true }, orderBy: { date: "asc" } },
       trips: {
         include: { _count: { select: { lines: true } }, lines: { select: { amount: true } } },
@@ -43,7 +47,42 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   });
   if (!r) notFound();
 
-  const editable = r.status === "DRAFT";
+  // Own claims are always visible; coworkers' only to reviewers (Supervisor/Finance/Admin/Owner).
+  const isOwner = r.userId === ctx.userId;
+  if (!isOwner && !can.review(membership.role)) notFound();
+
+  const [submitter, orgRoles, signers] = await Promise.all([
+    prisma.membership.findFirst({
+      where: { orgId: membership.orgId, userId: r.userId },
+      include: { approver: { include: { user: true } } },
+    }),
+    prisma.membership.findMany({ where: { orgId: membership.orgId }, select: { userId: true, role: true } }),
+    prisma.user.findMany({
+      where: { id: { in: [r.supervisorById, r.financeById].filter((x): x is string => !!x) } },
+    }),
+  ]);
+  const personName = (u?: { displayName: string | null; name: string | null; email: string } | null) =>
+    u ? u.displayName ?? u.name ?? u.email : null;
+  const supervisorName =
+    personName(signers.find((u) => u.id === r.supervisorById)) ??
+    personName(submitter?.approver?.user) ??
+    r.user.supervisorName ??
+    "Supervisor";
+  const financeName = personName(signers.find((u) => u.id === r.financeById)) ?? r.user.financeName ?? "Finance";
+  const division = submitter?.division ?? r.user.division ?? "";
+
+  const perms = approvalPermissions({
+    viewerUserId: ctx.userId,
+    viewerMembershipId: membership.id,
+    viewerRole: membership.role,
+    submitterUserId: r.userId,
+    submitterApproverId: submitter?.approverId ?? null,
+    status: r.status,
+    orgRoles,
+  });
+  const hasApprovalAction = perms.canSupervise || perms.canFinance || perms.canMarkPaid || perms.canReject || perms.canReopen;
+
+  const editable = isOwner && r.status === "DRAFT";
   async function submit() {
     "use server";
     const s = await auth();
@@ -58,6 +97,18 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   return (
     <main className="max-w-md mx-auto px-4 pt-4 space-y-4 pb-40 print:pb-0 print:max-w-none">
+      {!isOwner && (
+        <p className="rounded-xl bg-[var(--color-primary-fixed)] px-3 py-2 text-body-sm text-[var(--color-on-primary-fixed-variant)] print:hidden">
+          Formulir milik <b>{employeeName}</b>{division ? ` · ${division}` : ""}
+        </p>
+      )}
+      {r.status === "REJECTED" && (
+        <div className="rounded-2xl border border-[var(--color-error)]/30 bg-[var(--color-error-container)] p-4 text-[var(--color-on-error-container)] print:hidden">
+          <p className="flex items-center gap-1.5 text-label-lg"><Icon name="block" size={18} /> Ditolak</p>
+          {r.rejectedReason && <p className="mt-1 text-body-md">{r.rejectedReason}</p>}
+          {isOwner && <p className="mt-1 text-body-sm">Tekan &ldquo;Tarik &amp; Edit&rdquo; untuk memperbaiki lalu kirim ulang.</p>}
+        </div>
+      )}
       {/* Dossier Header (screen) */}
       <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl p-5 shadow-[var(--shadow-card)] border border-[var(--color-outline-variant)]/20 relative overflow-hidden print:hidden">
         <div className="absolute -right-8 -top-8 w-28 h-28 bg-[var(--color-primary-container)]/10 rounded-full blur-2xl pointer-events-none" />
@@ -89,15 +140,15 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {/* Excel-style print form */}
       <PrintForm
-        companyName={r.user.companyName ?? ""}
+        companyName={r.org?.name ?? r.user.companyName ?? ""}
         employeeName={employeeName}
-        division={r.user.division ?? ""}
+        division={division}
         visitedPlace={r.visitedPlace ?? ""}
         purpose={r.purpose}
         periodStart={r.periodStart}
         periodEnd={r.periodEnd}
         totalAmount={r.totalAmount}
-        supervisorName={r.user.supervisorName ?? "Supervisor"}
+        supervisorName={supervisorName}
         lines={r.lines.map((l) => ({
           type: l.type,
           amount: l.amount,
@@ -287,8 +338,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           submittedAt={r.submittedAt ?? r.createdAt}
           supervisorAt={r.supervisorAt}
           financeAt={r.financeAt}
-          supervisorName={r.user.supervisorName ?? undefined}
-          financeName={r.user.financeName ?? undefined}
+          supervisorName={supervisorName}
+          financeName={financeName}
           showFinance
         />
       </section>
@@ -302,9 +353,9 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
               <SubmitButton />
             </form>
           )}
-          {!editable && r.status !== "REIMBURSED" && r.status !== "REJECTED" && (
-            <div className="flex-[2]">
-              <ApprovalActions reimbursementId={r.id} status={r.status} />
+          {hasApprovalAction && (
+            <div className="flex-[3]">
+              <ApprovalActions reimbursementId={r.id} perms={perms} />
             </div>
           )}
           {editable && !canSubmit && (

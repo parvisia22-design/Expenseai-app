@@ -21,15 +21,13 @@ export default async function SettingsPage() {
         displayName={me?.displayName ?? ""}
         division={me?.division ?? ""}
         employeeNumber={me?.employeeNumber ?? ""}
-        companyName={me?.companyName ?? ""}
-        supervisorName={me?.supervisorName ?? ""}
-        financeName={me?.financeName ?? ""}
       />
 
       <ThemeToggle />
       <LocaleToggle />
 
       <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl border border-[var(--color-outline-variant)]/25 shadow-sm divide-y divide-[var(--color-outline-variant)]/25">
+        <SettingsLink href="/org" icon="apartment" title="Perusahaan & Anggota" subtitle="Undang tim, atur Supervisor & Finance" />
         <SettingsLink href="/search" icon="search" title="Cari" subtitle="Lintas semua rincian" />
         <SettingsLink href="/budgets" icon="account_balance_wallet" title="Budget" subtitle="Batas pengeluaran per tujuan" />
         <SettingsLink href="/templates" icon="bookmark_add" title="Template" subtitle="Rute berulang sekali klik" />

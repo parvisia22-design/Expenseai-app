@@ -5,6 +5,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { upsertOpenReimbursement, recomputeReimbursementTotal } from "@/lib/expense/group";
+import { requireOrgContext } from "@/lib/org/context";
 
 const TemplateInput = z.object({
   name: z.string().min(1),
@@ -53,7 +54,9 @@ export async function applyTemplate(fd: FormData) {
   if (!t) throw new Error("template not found");
 
   const today = new Date();
-  const r = await upsertOpenReimbursement({ userId: s.user.id, purpose: t.purpose, date: today });
+  const ctx = await requireOrgContext();
+  const rate = ctx.membership.org.mileageRatePerKm;
+  const r = await upsertOpenReimbursement({ userId: s.user.id, orgId: ctx.membership.orgId, purpose: t.purpose, date: today });
   const place = t.originText && t.destText ? `${t.originText} → ${t.destText}` : t.destText ?? t.originText ?? "";
 
   if (t.distanceKm) {
@@ -61,7 +64,8 @@ export async function applyTemplate(fd: FormData) {
       data: {
         userId: s.user.id, reimbursementId: r.id, date: today,
         type: "MILEAGE", placeText: place, mileageKm: t.distanceKm,
-        description: `${t.distanceKm} km`, amount: 0,
+        unit: "km", quantity: t.distanceKm, unitPrice: rate,
+        description: `${t.distanceKm} km`, amount: Math.round(t.distanceKm * rate),
       },
     });
   }

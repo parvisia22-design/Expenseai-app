@@ -1,6 +1,9 @@
 import { signIn } from "@/auth";
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string }> }) {
+  const { callbackUrl } = await searchParams;
+  // Only same-site relative paths, never an external redirect.
+  const redirectTo = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/chat";
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
       <div className="w-full max-w-sm rounded-[var(--radius-card)] bg-[var(--color-surface-container-low)] border border-[var(--color-outline)] p-8 space-y-6 shadow-sm">
@@ -12,7 +15,7 @@ export default function LoginPage() {
         <form
           action={async (formData) => {
             "use server";
-            await signIn("nodemailer", { email: formData.get("email") as string, redirectTo: "/chat" });
+            await signIn("nodemailer", { email: formData.get("email") as string, redirectTo });
           }}
           className="space-y-3"
         >
@@ -38,12 +41,12 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-2">
-          <form action={async () => { "use server"; await signIn("google", { redirectTo: "/chat" }); }}>
+          <form action={async () => { "use server"; await signIn("google", { redirectTo }); }}>
             <button className="w-full rounded-[var(--radius-control)] border border-[var(--color-outline)] bg-[var(--color-surface)] py-3 text-sm font-semibold hover:bg-[var(--color-surface-container)]">
               Continue with Google
             </button>
           </form>
-          <form action={async () => { "use server"; await signIn("apple", { redirectTo: "/chat" }); }}>
+          <form action={async () => { "use server"; await signIn("apple", { redirectTo }); }}>
             <button className="w-full rounded-[var(--radius-control)] bg-black py-3 text-sm font-semibold text-white hover:opacity-90">
               Continue with Apple
             </button>

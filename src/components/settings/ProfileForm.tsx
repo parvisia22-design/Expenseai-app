@@ -8,9 +8,6 @@ type Props = {
   displayName: string;
   division: string;
   employeeNumber: string;
-  companyName: string;
-  supervisorName: string;
-  financeName: string;
 };
 
 export function ProfileForm(p: Props) {
@@ -33,15 +30,6 @@ export function ProfileForm(p: Props) {
         <Field label="Nama Karyawan / Staff's Name" name="displayName" defaultValue={p.displayName} />
         <Field label="Divisi / Division" name="division" defaultValue={p.division} />
         <Field label="Nomor Karyawan / Employee No." name="employeeNumber" defaultValue={p.employeeNumber} />
-      </Section>
-
-      <Section title="Perusahaan" icon="apartment">
-        <Field label="Nama Perusahaan / Company Name" name="companyName" defaultValue={p.companyName} placeholder="PT. ORIENTAL SHEET PILING" />
-      </Section>
-
-      <Section title="Persetujuan" icon="verified_user">
-        <Field label="Nama Supervisor / Approver" name="supervisorName" defaultValue={p.supervisorName} placeholder="Soejanto" />
-        <Field label="Nama Finance" name="financeName" defaultValue={p.financeName} />
       </Section>
 
       <button

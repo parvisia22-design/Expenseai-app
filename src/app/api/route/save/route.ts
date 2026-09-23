@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { getOrgContext } from "@/lib/org/context";
 import { prisma } from "@/lib/db/prisma";
 import { upsertOpenReimbursement, recomputeReimbursementTotal } from "@/lib/expense/group";
 
@@ -17,9 +17,10 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  const userId = session?.user?.id;
+  const ctx = await getOrgContext();
+  const userId = ctx?.userId;
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!ctx.membership) return NextResponse.json({ error: "Buat atau gabung perusahaan dulu." }, { status: 403 });
 
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
 
   const reimbursement = await upsertOpenReimbursement({
     userId,
+    orgId: ctx.membership.orgId,
     purpose: b.purpose,
     date: new Date(),
   });
@@ -36,7 +38,8 @@ export async function POST(req: NextRequest) {
   const created: string[] = [];
 
   if (b.distanceKm > 0) {
-    const mileageAmount = b.ratePerKm ? Math.round(b.distanceKm * b.ratePerKm) : 0;
+    const rate = b.ratePerKm ?? ctx.membership.org.mileageRatePerKm;
+    const mileageAmount = Math.round(b.distanceKm * rate);
     const l = await prisma.expenseLine.create({
       data: {
         userId,
@@ -45,6 +48,9 @@ export async function POST(req: NextRequest) {
         type: "MILEAGE",
         placeText: place,
         mileageKm: b.distanceKm,
+        unit: "km",
+        quantity: b.distanceKm,
+        unitPrice: rate,
         amount: mileageAmount,
         description: `${b.distanceKm} km`,
       },

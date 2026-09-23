@@ -8,12 +8,14 @@ import { recordPurposeLink } from "@/lib/learning/purpose-links";
  */
 export async function upsertOpenReimbursement(opts: {
   userId: string;
+  orgId: string | null;
   purpose: string;
   date: Date;
 }) {
   const existing = await prisma.reimbursement.findFirst({
     where: {
       userId: opts.userId,
+      orgId: opts.orgId,
       status: "DRAFT",
       purpose: { equals: opts.purpose, mode: "insensitive" },
     },
@@ -27,6 +29,7 @@ export async function upsertOpenReimbursement(opts: {
   return prisma.reimbursement.create({
     data: {
       userId: opts.userId,
+      orgId: opts.orgId,
       title: opts.purpose,
       purpose: opts.purpose,
       periodStart: dayStart,

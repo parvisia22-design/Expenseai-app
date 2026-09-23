@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { auth } from "@/auth";
+import { getOrgContext } from "@/lib/org/context";
 import { extractReceipt } from "@/lib/ocr/claude-vision";
 import { saveImage } from "@/lib/storage/local";
 import { addLineWithAttachment, upsertOpenReimbursement } from "@/lib/expense/group";
@@ -12,9 +12,10 @@ export const maxDuration = 60;
 
 // One shot: upload → OCR → persist as an ExpenseLine on the current DRAFT Reimbursement.
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  const userId = session?.user?.id;
+  const ctx = await getOrgContext();
+  const userId = ctx?.userId;
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!ctx.membership) return NextResponse.json({ error: "Buat atau gabung perusahaan dulu." }, { status: 403 });
 
   const form = await req.formData();
   const file = form.get("image");
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
 
   const reimbursement = await upsertOpenReimbursement({
     userId,
+    orgId: ctx.membership.orgId,
     purpose,
     date: extract.date ? new Date(extract.date) : new Date(dateStr),
   });

@@ -34,6 +34,7 @@ model User {
   purposeLinks   PurposeLink[]
   budgets        Budget[]
   templates      RecurringTemplate[]
+  memberships    Membership[]
 
   // Preferences
   themePref      String?     // "light" | "dark" | null (system)
@@ -147,12 +148,98 @@ model Reimbursement {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
+  // Multi-tenant: which company this claim belongs to, and who signed it off
+  orgId          String?
+  supervisorById String?
+  financeById    String?
+  rejectedReason String?
+
   user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
   lines ExpenseLine[]
   trips Trip[]
 
   @@index([userId, periodStart])
   @@index([userId, status])
+  @@index([orgId, status])
+}
+
+// ─── Multi-tenant (per-company workspaces) ───────────────────────
+enum OrgRole {
+  OWNER     // billing + everything
+  ADMIN     // manage members + settings
+  APPROVER  // supervisor sign-off
+  FINANCE   // finance sign-off + mark paid
+  MEMBER    // submit own claims
+}
+
+enum PlanTier {
+  TRIAL
+  STARTER
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Organization {
+  id                 String             @id @default(cuid())
+  name               String
+  slug               String             @unique
+  address            String?
+  logoUrl            String?
+  mileageRatePerKm   Int                @default(2500)
+  plan               PlanTier           @default(TRIAL)
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  seatLimit          Int                @default(5)
+  trialEndsAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  memberships    Membership[]
+  invitations    Invitation[]
+  reimbursements Reimbursement[]
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  orgId          String
+  userId         String
+  role           OrgRole  @default(MEMBER)
+  division       String?
+  employeeNumber String?
+  approverId     String?  // Membership.id of this member's supervisor
+  createdAt      DateTime @default(now())
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver Membership?  @relation("ApproverOf", fields: [approverId], references: [id], onDelete: SetNull)
+  reports  Membership[] @relation("ApproverOf")
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  orgId       String
+  email       String
+  role        OrgRole   @default(MEMBER)
+  token       String    @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([email])
 }
 
 // Optional intermediate: a Reimbursement Period can group multiple Trips

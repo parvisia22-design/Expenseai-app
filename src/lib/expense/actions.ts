@@ -4,6 +4,8 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { recomputeReimbursementTotal } from "@/lib/expense/group";
+import { requireOrgContext } from "@/lib/org/context";
+import { permsFor } from "@/lib/org/approval";
 import type { ExpenseType } from "@prisma/client";
 
 const TYPES: ExpenseType[] = [
@@ -146,54 +148,76 @@ export async function deleteReimbursement(fd: FormData) {
 }
 
 // ─── Approval workflow ─────────────────────────────────────────
-// Single-user for now: user self-approves each step to track state.
-// When multi-user is added, gate these on role (Supervisor / Finance).
+// Who may act is decided by org role + the submitter's assigned approver
+// (see src/lib/org/approval.ts).
 
-async function requireOwnedReimbursement(id: string) {
-  const s = await auth();
-  const userId = s?.user?.id;
-  if (!userId) throw new Error("unauthorized");
-  const r = await prisma.reimbursement.findFirst({ where: { id, userId }, select: { id: true, status: true } });
-  if (!r) throw new Error("not found");
-  return { userId, status: r.status };
+async function loadPerms(id: string) {
+  const ctx = await requireOrgContext();
+  const res = await permsFor(id, {
+    userId: ctx.userId,
+    membershipId: ctx.membership.id,
+    role: ctx.membership.role,
+    orgId: ctx.membership.orgId,
+  });
+  if (!res) throw new Error("not found");
+  return { ctx, ...res };
+}
+
+function done(id: string) {
+  revalidatePath(`/report/${id}`);
+  revalidatePath("/approvals");
+  revalidatePath("/reimbursements");
 }
 
 export async function approveSupervisor(fd: FormData) {
   const id = String(fd.get("reimbursementId") ?? "");
-  const { status } = await requireOwnedReimbursement(id);
-  if (status !== "SUBMITTED") throw new Error(`cannot approve from ${status}`);
+  const { ctx, perms } = await loadPerms(id);
+  if (!perms.canSupervise) throw new Error("forbidden");
   await prisma.reimbursement.update({
     where: { id },
-    data: { status: "SUPERVISOR_APPROVED", supervisorAt: new Date() },
+    data: { status: "SUPERVISOR_APPROVED", supervisorAt: new Date(), supervisorById: ctx.userId },
   });
-  revalidatePath(`/report/${id}`);
+  done(id);
 }
 
 export async function approveFinance(fd: FormData) {
   const id = String(fd.get("reimbursementId") ?? "");
-  const { status } = await requireOwnedReimbursement(id);
-  if (status !== "SUPERVISOR_APPROVED") throw new Error(`cannot approve from ${status}`);
+  const { ctx, perms } = await loadPerms(id);
+  if (!perms.canFinance) throw new Error("forbidden");
   await prisma.reimbursement.update({
     where: { id },
-    data: { status: "FINANCE_APPROVED", financeAt: new Date() },
+    data: { status: "FINANCE_APPROVED", financeAt: new Date(), financeById: ctx.userId },
   });
-  revalidatePath(`/report/${id}`);
+  done(id);
 }
 
 export async function markReimbursed(fd: FormData) {
   const id = String(fd.get("reimbursementId") ?? "");
-  const { status } = await requireOwnedReimbursement(id);
-  if (status !== "FINANCE_APPROVED") throw new Error(`cannot mark from ${status}`);
+  const { perms } = await loadPerms(id);
+  if (!perms.canMarkPaid) throw new Error("forbidden");
   await prisma.reimbursement.update({ where: { id }, data: { status: "REIMBURSED" } });
-  revalidatePath(`/report/${id}`);
+  done(id);
+}
+
+export async function rejectReimbursement(fd: FormData) {
+  const id = String(fd.get("reimbursementId") ?? "");
+  const reason = String(fd.get("reason") ?? "").trim() || null;
+  const { perms } = await loadPerms(id);
+  if (!perms.canReject) throw new Error("forbidden");
+  await prisma.reimbursement.update({ where: { id }, data: { status: "REJECTED", rejectedReason: reason } });
+  done(id);
 }
 
 export async function reopenDraft(fd: FormData) {
   const id = String(fd.get("reimbursementId") ?? "");
-  await requireOwnedReimbursement(id);
+  const { perms } = await loadPerms(id);
+  if (!perms.canReopen) throw new Error("forbidden");
   await prisma.reimbursement.update({
     where: { id },
-    data: { status: "DRAFT", submittedAt: null, supervisorAt: null, financeAt: null },
+    data: {
+      status: "DRAFT", submittedAt: null, supervisorAt: null, financeAt: null,
+      supervisorById: null, financeById: null, rejectedReason: null,
+    },
   });
-  revalidatePath(`/report/${id}`);
+  done(id);
 }

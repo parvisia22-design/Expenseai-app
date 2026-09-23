@@ -1,11 +1,11 @@
-import { auth } from "@/auth";
+import { requireOrgContext } from "@/lib/org/context";
 import { prisma } from "@/lib/db/prisma";
 import { RouteClient } from "@/components/route/RouteClient";
 
 export default async function RoutePage() {
-  const session = await auth();
+  const ctx = await requireOrgContext();
   const drafts = await prisma.reimbursement.findMany({
-    where: { userId: session!.user!.id, status: "DRAFT" },
+    where: { userId: ctx.userId, orgId: ctx.membership.orgId, status: "DRAFT" },
     orderBy: { updatedAt: "desc" },
     select: { id: true, title: true, purpose: true },
     take: 10,
