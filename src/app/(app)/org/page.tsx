@@ -4,7 +4,7 @@ import { Icon } from "@/components/ui/Icon";
 import { InviteForm } from "@/components/org/InviteForm";
 import { ShareInvite } from "@/components/org/ShareInvite";
 import { ROLE_LABEL, can, requireOrgContext } from "@/lib/org/context";
-import { PLAN_INFO } from "@/lib/org/plans";
+import { BILLING_ENABLED, PLAN_INFO } from "@/lib/org/plans";
 import { removeMember, revokeInvitation, updateMember, updateOrganization } from "@/lib/org/actions";
 import type { OrgRole } from "@prisma/client";
 
@@ -35,7 +35,9 @@ export default async function OrgPage() {
   const origin = process.env.AUTH_URL ?? `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
   const nameOf = (m: (typeof members)[number]) => m.user.displayName ?? m.user.name ?? m.user.email;
   const approvers = members.filter((m) => can.approve(m.role));
-  const plan = PLAN_INFO[org.plan];
+  const plan = BILLING_ENABLED
+    ? PLAN_INFO[org.plan]
+    : { label: "Beta — Gratis", seats: Infinity, blurb: "Semua fitur, anggota tanpa batas selama masa beta" };
   const daysLeft = org.trialEndsAt ? Math.max(0, Math.ceil((org.trialEndsAt.getTime() - Date.now()) / 86_400_000)) : null;
 
   return (
@@ -61,13 +63,13 @@ export default async function OrgPage() {
         <div className="mt-4">
           <div className="flex justify-between text-label-md text-white/85">
             <span>Anggota</span>
-            <span>{members.length} / {org.seatLimit}</span>
+            <span>{BILLING_ENABLED ? `${members.length} / ${org.seatLimit}` : members.length}</span>
           </div>
           <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/20">
-            <div className="h-full bg-white" style={{ width: `${Math.min(100, (members.length / org.seatLimit) * 100)}%` }} />
+            <div className="h-full bg-white" style={{ width: BILLING_ENABLED ? `${Math.min(100, (members.length / org.seatLimit) * 100)}%` : "100%" }} />
           </div>
         </div>
-        {org.plan === "TRIAL" && daysLeft !== null && (
+        {BILLING_ENABLED && org.plan === "TRIAL" && daysLeft !== null && (
           <p className="mt-3 text-body-sm text-white/85">Trial berakhir dalam {daysLeft} hari. Pembayaran langganan segera tersedia.</p>
         )}
       </section>

@@ -66,7 +66,7 @@ export default async function OnboardingPage() {
           />
         </label>
         <button className="h-12 w-full rounded-2xl bg-[var(--color-primary-container)] text-label-lg text-[var(--color-on-primary)]">
-          Mulai trial 14 hari
+          Buat perusahaan
         </button>
         <p className="text-center text-body-sm text-[var(--color-on-surface-variant)]">
           Anda menjadi Owner. Undang tim setelah ini.

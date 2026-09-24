@@ -8,7 +8,7 @@ import type { OrgRole } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import { ORG_COOKIE, can, requireOrgContext } from "./context";
-import { PLAN_INFO, TRIAL_DAYS } from "./plans";
+import { BILLING_ENABLED, PLAN_INFO, TRIAL_DAYS } from "./plans";
 
 const ROLES = ["OWNER", "ADMIN", "APPROVER", "FINANCE", "MEMBER"] as const;
 
@@ -107,7 +107,7 @@ export async function createInvitation(fd: FormData) {
     prisma.membership.findFirst({ where: { orgId, user: { email: parsed.email } } }),
   ]);
   if (already) throw new Error("Email ini sudah menjadi anggota.");
-  if (members + pending >= org.seatLimit) {
+  if (BILLING_ENABLED && members + pending >= org.seatLimit) {
     throw new Error(`Batas ${org.seatLimit} anggota untuk paket ini sudah tercapai.`);
   }
 

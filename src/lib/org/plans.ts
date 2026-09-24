@@ -10,3 +10,8 @@ export const PLAN_INFO: Record<PlanTier, { label: string; seats: number; blurb: 
 };
 
 export const TRIAL_DAYS = 14;
+
+// Off until a payment gateway is wired up: every company is free with
+// unlimited members and no trial clock. Set BILLING_ENABLED=true to turn
+// seat limits and trial expiry back on.
+export const BILLING_ENABLED = process.env.BILLING_ENABLED === "true";
