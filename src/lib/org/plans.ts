@@ -1,13 +1,16 @@
 import type { PlanTier } from "@prisma/client";
 
-// Seat limits per plan. Prices are intentionally not hard-coded yet —
-// set them once the payment provider (Xendit / Midtrans) is chosen.
-export const PLAN_INFO: Record<PlanTier, { label: string; seats: number; blurb: string }> = {
-  TRIAL: { label: "Trial 14 hari", seats: 5, blurb: "Semua fitur, maks. 5 anggota" },
-  STARTER: { label: "Starter", seats: 15, blurb: "Tim kecil, maks. 15 anggota" },
-  BUSINESS: { label: "Business", seats: 100, blurb: "Multi-divisi, maks. 100 anggota" },
-  ENTERPRISE: { label: "Enterprise", seats: 10_000, blurb: "Tanpa batas, SLA & onboarding" },
+// Plan catalogue. Prices are monthly IDR per company (null = custom quote).
+// Nothing is charged until BILLING_ENABLED is on and a gateway is connected;
+// edit the numbers here to change what the pricing table shows.
+export const PLAN_INFO: Record<PlanTier, { label: string; seats: number; blurb: string; priceMonthly: number | null }> = {
+  TRIAL: { label: "Trial 14 hari", seats: 5, blurb: "Semua fitur, maks. 5 anggota", priceMonthly: 0 },
+  STARTER: { label: "Starter", seats: 15, blurb: "Tim kecil, maks. 15 anggota", priceMonthly: 199_000 },
+  BUSINESS: { label: "Business", seats: 100, blurb: "Multi-divisi, maks. 100 anggota", priceMonthly: 999_000 },
+  ENTERPRISE: { label: "Enterprise", seats: 10_000, blurb: "Tanpa batas, SLA & onboarding", priceMonthly: null },
 };
+
+export const PAID_PLANS: PlanTier[] = ["STARTER", "BUSINESS", "ENTERPRISE"];
 
 export const TRIAL_DAYS = 14;
 

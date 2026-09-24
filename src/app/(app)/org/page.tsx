@@ -4,7 +4,8 @@ import { Icon } from "@/components/ui/Icon";
 import { InviteForm } from "@/components/org/InviteForm";
 import { ShareInvite } from "@/components/org/ShareInvite";
 import { ROLE_LABEL, can, requireOrgContext } from "@/lib/org/context";
-import { BILLING_ENABLED, PLAN_INFO } from "@/lib/org/plans";
+import { BILLING_ENABLED, PAID_PLANS, PLAN_INFO } from "@/lib/org/plans";
+import { rp } from "@/lib/format";
 import { removeMember, revokeInvitation, updateMember, updateOrganization } from "@/lib/org/actions";
 import type { OrgRole } from "@prisma/client";
 
@@ -73,6 +74,36 @@ export default async function OrgPage() {
           <p className="mt-3 text-body-sm text-white/85">Trial berakhir dalam {daysLeft} hari. Pembayaran langganan segera tersedia.</p>
         )}
       </section>
+
+      {/* Pricing (display only while billing is off) */}
+      <details className="rounded-2xl border border-[var(--color-outline-variant)]/25 bg-[var(--color-surface-container-lowest)] p-4 shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center gap-2">
+          <Icon name="sell" size={18} className="text-[var(--color-primary)]" />
+          <span className="text-headline-sm">Paket langganan</span>
+          {!BILLING_ENABLED && (
+            <span className="ml-auto rounded-full bg-[var(--color-secondary-container)]/60 px-2 py-0.5 text-label-sm text-[var(--color-on-secondary-container)]">Gratis selama beta</span>
+          )}
+        </summary>
+        <ul className="mt-3 space-y-2">
+          {PAID_PLANS.map((p) => {
+            const info = PLAN_INFO[p];
+            return (
+              <li key={p} className="flex items-center justify-between rounded-xl bg-[var(--color-surface-container-low)] px-3 py-2.5">
+                <div>
+                  <p className="text-label-lg">{info.label}</p>
+                  <p className="text-body-sm text-[var(--color-on-surface-variant)]">{info.blurb}</p>
+                </div>
+                <p className="text-right font-mono text-label-lg text-[var(--color-primary)]">
+                  {info.priceMonthly == null ? "Hubungi kami" : <>{rp(info.priceMonthly)}<span className="block text-label-sm text-[var(--color-on-surface-variant)]">/ bulan</span></>}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-body-sm text-[var(--color-on-surface-variant)]">
+          {BILLING_ENABLED ? "Upgrade segera tersedia." : "Belum ada tagihan — semua fitur gratis selama masa beta."}
+        </p>
+      </details>
 
       {/* Company settings */}
       {manager && (
