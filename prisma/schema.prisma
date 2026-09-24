@@ -178,6 +178,7 @@ enum PlanTier {
   STARTER
   BUSINESS
   ENTERPRISE
+  COMPLIMENTARY // granted by a platform admin: free forever, no seat limit
 }
 
 enum SubscriptionStatus {

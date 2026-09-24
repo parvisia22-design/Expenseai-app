@@ -6,6 +6,7 @@ import { ProfileForm } from "@/components/settings/ProfileForm";
 import { ThemeToggle } from "@/components/settings/ThemeToggle";
 import { LocaleToggle } from "@/components/settings/LocaleToggle";
 import { Icon } from "@/components/ui/Icon";
+import { isPlatformAdmin } from "@/lib/platform/admin";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -27,6 +28,9 @@ export default async function SettingsPage() {
       <LocaleToggle />
 
       <section className="bg-[var(--color-surface-container-lowest)] rounded-2xl border border-[var(--color-outline-variant)]/25 shadow-sm divide-y divide-[var(--color-outline-variant)]/25">
+        {isPlatformAdmin(session?.user?.email) && (
+          <SettingsLink href="/admin" icon="admin_panel_settings" title="Platform Admin" subtitle="Semua perusahaan & paket" />
+        )}
         <SettingsLink href="/org" icon="apartment" title="Perusahaan & Anggota" subtitle="Undang tim, atur Supervisor & Finance" />
         <SettingsLink href="/search" icon="search" title="Cari" subtitle="Lintas semua rincian" />
         <SettingsLink href="/budgets" icon="account_balance_wallet" title="Budget" subtitle="Batas pengeluaran per tujuan" />

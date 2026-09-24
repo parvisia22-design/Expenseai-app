@@ -8,7 +8,11 @@ export const PLAN_INFO: Record<PlanTier, { label: string; seats: number; blurb: 
   STARTER: { label: "Starter", seats: 15, blurb: "Tim kecil, maks. 15 anggota", priceMonthly: 199_000 },
   BUSINESS: { label: "Business", seats: 100, blurb: "Multi-divisi, maks. 100 anggota", priceMonthly: 999_000 },
   ENTERPRISE: { label: "Enterprise", seats: 10_000, blurb: "Tanpa batas, SLA & onboarding", priceMonthly: null },
+  COMPLIMENTARY: { label: "Complimentary", seats: 10_000, blurb: "Gratis selamanya, anggota tanpa batas", priceMonthly: 0 },
 };
+
+// Seat limits apply only when billing is on and the company isn't comped.
+export const seatsEnforced = (plan: PlanTier) => BILLING_ENABLED && plan !== "COMPLIMENTARY";
 
 export const PAID_PLANS: PlanTier[] = ["STARTER", "BUSINESS", "ENTERPRISE"];
 
